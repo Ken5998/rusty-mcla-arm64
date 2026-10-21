@@ -1,0 +1,5 @@
+__pycache__/
+launcher/target/
+/out/
+/src/
+tools/steam-art/target/

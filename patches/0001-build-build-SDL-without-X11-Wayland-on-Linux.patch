@@ -1,0 +1,28 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Kenan=20Kasumovi=C4=87?=
+ <46025606+Ken5998@users.noreply.github.com>
+Date: Wed, 21 Oct 2026 19:46:06 +0000
+Subject: [PATCH] build: build SDL without X11/Wayland on Linux
+
+SDL is only used for game pads here (winit opens the window), but its
+CMake build refuses to configure on Linux without the X11 or Wayland
+development files. A Unix console build needs neither.
+---
+ mcla-rs/crates/game/Cargo.toml | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/mcla-rs/crates/game/Cargo.toml b/mcla-rs/crates/game/Cargo.toml
+index 6926117..33e400d 100644
+--- a/mcla-rs/crates/game/Cargo.toml
++++ b/mcla-rs/crates/game/Cargo.toml
+@@ -34,3 +34,7 @@ egui-winit = { version = "0.31", default-features = false, features = ["links"]
+ sdl3-sys = { version = "0.7", default-features = false, features = ["build-from-source-static", "no-default-subsystems", "sdl-joystick", "sdl-audio", "sdl-haptic", "sdl-hidapi", "sdl-sensor"] }
+ png = "0.17"
+ rodio = { version = "0.20", default-features = false, features = ["symphonia-all"] }
++
++# Linux: SDL is only used for game pads here (winit opens the window), so build it without X11/Wayland
++[target.'cfg(target_os = "linux")'.dependencies]
++sdl3-sys = { version = "0.7", default-features = false, features = ["sdl-unix-console-build"] }
+-- 
+2.43.0
+

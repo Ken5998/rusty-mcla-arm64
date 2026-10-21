@@ -1,0 +1,61 @@
+name: Release
+
+# Publishes release vVERSION (the version in launcher/Cargo.toml) with the
+# launcher, the ARM64 build of the game (Rusty MCLA at upstream.json's commit
+# with patches/, its install tool and the artwork tool) and the patched source
+# the build is made from. No game files: on the device the launcher builds the
+# game data from the player's own disc.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Install Rust and the build libraries
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends cmake pkg-config libasound2-dev libudev-dev
+          command -v rustup || curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain none
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          rust="$(python3 -c 'import json; print(json.load(open("upstream.json"))["rust"])')"
+          "$HOME/.cargo/bin/rustup" toolchain install "$rust" --profile minimal
+          "$HOME/.cargo/bin/rustup" toolchain install stable --profile minimal
+          echo "MCLA_RUST=$rust" >> "$GITHUB_ENV"
+      - name: Build the game and the launcher
+        run: |
+          RUSTUP_TOOLCHAIN="$MCLA_RUST" scripts/build-game.sh out
+          scripts/package-launcher.sh out
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="$(sed -n 's/^version = "\(.*\)"/\1/p' launcher/Cargo.toml | head -1)"
+          upstream="$(python3 -c 'import json; print(json.load(open("upstream.json"))["version"])')"
+          files=(out/RustyMCLA-Launcher-linux-arm64.tar.gz out/RustyMCLA-game-linux-arm64.tar.gz out/RustyMCLA-source.tar.gz)
+          sha256="$(sha256sum out/RustyMCLA-Launcher-linux-arm64.tar.gz | cut -d' ' -f1)"
+          scripts/release-notes.sh "v$version" > notes.md
+          cat >> notes.md <<NOTES
+          ## Install
+
+          Midnight Club: Los Angeles for ARM64 Linux handhelds, such as the Retroid Pocket 6 on ArmadaOS: launcher $version with Rusty MCLA $upstream built for ARM64.
+
+          On the device, in Desktop Mode: unpack RustyMCLA-Launcher-linux-arm64.tar.gz, start RustyMCLA/rusty-mcla-launcher and choose your own Xbox 360 disc image of Midnight Club: Los Angeles, Complete Edition. It downloads the game build from this release and ffmpeg, builds the game data from your disc (about 16 GB free; keep it on the charger) and adds the game to Steam with its artwork. Update gets newer builds later. It needs git, Python 3, curl and tar on the device, as ArmadaOS has.
+
+          RustyMCLA-game-linux-arm64.tar.gz is the game itself (the launcher downloads it); RustyMCLA-source.tar.gz is its source, Rusty MCLA with this repository's patches (GPL-3.0). No game files are included. Launcher SHA-256: \`$sha256\`
+          NOTES
+          if gh release view "v$version" > /dev/null 2>&1; then
+            gh release upload "v$version" "${files[@]}" --clobber
+            gh release edit "v$version" --notes-file notes.md
+          else
+            gh release create "v$version" "${files[@]}" --title "Midnight Club: Los Angeles $version for ARM64 Linux" \
+              --notes-file notes.md --target "$GITHUB_SHA"
+          fi

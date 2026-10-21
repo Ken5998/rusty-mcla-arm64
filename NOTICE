@@ -1,0 +1,31 @@
+rusty-mcla-arm64
+https://github.com/Ken5998/rusty-mcla-arm64
+
+Copyright (c) 2026 Kenan Kasumović
+
+Licensed under the GNU General Public License, version 3 only (see LICENSE).
+
+This repository builds and sets up Rusty MCLA, the unofficial PC port of
+Midnight Club: Los Angeles written in Rust, on ARM64 Linux handhelds:
+https://github.com/holdmysocks/rusty-mcla, GPL-3.0-only. upstream.json pins
+the commit it is built from and patches/ holds the changes made to it; every
+release carries the patched source (RustyMCLA-source.tar.gz) beside the ARM64
+build, and the build carries upstream's THIRD-PARTY-NOTICES.md.
+
+The install downloads ffmpeg from https://github.com/BtbN/FFmpeg-Builds
+(GPL) on the device to convert the disc's audio and films; it is never
+shipped here.
+
+tools/steam-art draws the Steam artwork with the Anton font
+(https://github.com/googlefonts/AntonFont, SIL Open Font License 1.1, see
+tools/steam-art/fonts/OFL.txt) over screenshots the game takes of itself on
+the device.
+
+The launcher and the Steam scripts come from the Road Trip Adventure and FIFA
+Street ARM64 ports (https://github.com/Ken5998/road-trip-arm64,
+https://github.com/Ken5998/fifa-street-arm64) by the same author.
+
+This is an unofficial fan project, not affiliated with, authorised or
+endorsed by Rockstar Games or Take-Two Interactive. No game files are
+included: the player uses their own Xbox 360 disc image of Midnight Club: Los
+Angeles, Complete Edition.

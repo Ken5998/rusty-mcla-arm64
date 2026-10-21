@@ -1,0 +1,24 @@
+[package]
+name = "rusty-mcla-launcher"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+license = "GPL-3.0-only"
+description = "Sets up Midnight Club: Los Angeles (Rusty MCLA) on an ARM64 Linux handheld from the player's own disc, then plays it or adds it to Steam"
+publish = false
+
+[[bin]]
+name = "rusty-mcla-launcher"
+path = "src/main.rs"
+
+[dependencies]
+# eframe drawing with OpenGL (lighter than wgpu, and there on every desktop)
+# and rfd for the file dialog, as in the other ARM64 launchers of this project.
+eframe = { version = "0.34.2", default-features = false, features = ["accesskit", "default_fonts", "glow", "wayland", "x11"] }
+rfd = "0.17.2"
+libc = "0.2"
+
+[profile.release]
+lto = "thin"
+strip = true
+opt-level = "s"

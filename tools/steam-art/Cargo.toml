@@ -1,0 +1,17 @@
+[package]
+name = "steam-art"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+license = "GPL-3.0-only"
+description = "Draws the Steam artwork of Midnight Club: Los Angeles (Rusty MCLA) from screenshots the game took of itself"
+publish = false
+
+[dependencies]
+image = { version = "0.25", default-features = false, features = ["png"] }
+ab_glyph = "0.2"
+
+[profile.release]
+lto = "thin"
+strip = true
+opt-level = 3

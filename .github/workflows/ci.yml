@@ -1,0 +1,139 @@
+name: CI
+
+# Builds the game (Rusty MCLA at the pinned commit with patches/), its install
+# tool and the artwork tool on an ARM64 runner, then checks them in Fedora 44,
+# the base of ArmadaOS: every library they need is there, the scripts' unit
+# tests pass, a real install gets ffmpeg and stops cleanly at a stand-in disc,
+# and the artwork tool draws. The launcher (launcher/) is built on the ARM64
+# runner too, and its window opened on a virtual screen.
+
+on:
+  # Every branch: work reaches main without pull requests, once this is green.
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: never
+
+jobs:
+  game:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Rust and the build libraries
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends cmake pkg-config libasound2-dev libudev-dev
+          command -v rustup || curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain none
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          rust="$(python3 -c 'import json; print(json.load(open("upstream.json"))["rust"])')"
+          "$HOME/.cargo/bin/rustup" toolchain install "$rust" --profile minimal
+          echo "RUSTUP_TOOLCHAIN=$rust" >> "$GITHUB_ENV"
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            src/rusty-mcla/mcla-rs -> target
+            tools/steam-art -> target
+          key: ${{ hashFiles('upstream.json', 'patches/*.patch') }}
+      - name: Build the game
+        run: scripts/build-game.sh out
+      - name: The build
+        run: |
+          tar -tzvf out/RustyMCLA-game-linux-arm64.tar.gz
+          ls -l out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: game
+          path: out/RustyMCLA-game-linux-arm64.tar.gz
+          retention-days: 7
+
+  fedora:
+    needs: game
+    runs-on: ubuntu-24.04-arm
+    container: registry.fedoraproject.org/fedora:44
+    timeout-minutes: 30
+    steps:
+      # What ArmadaOS has: Python, curl, Vulkan and a KDE desktop's libraries.
+      - name: Install Python, curl and the desktop libraries
+        run: >-
+          dnf install -y --setopt=install_weak_deps=False git python3 curl findutils procps-ng file xz tar
+          mesa-vulkan-drivers vulkan-loader libX11 libX11-xcb libxcb libxkbcommon libxkbcommon-x11
+          libwayland-client libwayland-cursor libXrandr libXi libXcursor alsa-lib pipewire-alsa systemd-libs
+          xorg-x11-server-Xvfb xorg-x11-xauth
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: game
+          path: out
+      - name: Unit tests
+        run: |
+          python3 tests/add_to_steam_test.py
+          tests/install_test.sh
+      - name: The game finds its libraries
+        run: |
+          mkdir -p "$RUNNER_TEMP/game"
+          tar -xzf out/RustyMCLA-game-linux-arm64.tar.gz -C "$RUNNER_TEMP/game" --strip-components=1
+          cat "$RUNNER_TEMP/game/VERSION"
+          for exe in "$RUNNER_TEMP"/game/bin/*; do
+            file "$exe"
+            missing="$(ldd "$exe" | grep 'not found' || true)"
+            [ -z "$missing" ] || { echo "$exe is missing libraries:"; echo "$missing"; exit 1; }
+          done
+          echo "All the libraries are there"
+          "$RUNNER_TEMP/game/bin/steam-art" "$RUNNER_TEMP/art"
+          test "$(ls "$RUNNER_TEMP/art"/*.png | wc -l)" = 5
+      - name: A real install stops cleanly at a stand-in disc
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          home="$RUNNER_TEMP/home"
+          mkdir -p "$home/discs"
+          truncate -s 64M "$home/discs/Midnight Club - Los Angeles (USA).iso"
+          status=0
+          HOME="$home" MCLA_GAME_ARCHIVE="$PWD/out/RustyMCLA-game-linux-arm64.tar.gz" MCLA_DATA_SPACE=1000 \
+            scripts/install.sh "$home/discs/Midnight Club - Los Angeles (USA).iso" > install.log 2>&1 || status=$?
+          cat install.log
+          test "$status" != 0
+          ffmpeg="$home/.local/share/RustyMCLA-arm64/tools/ffmpeg/ffmpeg"
+          "$ffmpeg" -hide_banner -decoders | grep -E ' (xma1|xma2) '
+          "$ffmpeg" -hide_banner -encoders | grep -E ' libmp3lame '
+          grep -q '==> Building the game data from your disc' install.log
+      - name: The game opens a Vulkan window (lavapipe, no game data)
+        continue-on-error: true
+        run: |
+          status=0
+          RUSTY_MCLA_USER_DIR="$RUNNER_TEMP/user" xvfb-run -a -s "-screen 0 1280x720x24" \
+            timeout 60 "$RUNNER_TEMP/game/bin/mcla" --data "$RUNNER_TEMP/nodata" --screenshot "$RUNNER_TEMP/shot.png" --frames 30 \
+            > game.log 2>&1 || status=$?
+          echo "exit status $status"
+          tail -40 game.log
+
+  launcher:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Rust, and a virtual screen with OpenGL for the window
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q xvfb libgl1-mesa-dri libegl1 libxkbcommon-x11-0 libxcursor1 libxrandr2 libxi6
+          command -v cargo || curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+      - name: Test and build the launcher
+        run: |
+          cargo test --release --locked --manifest-path launcher/Cargo.toml
+          scripts/package-launcher.sh out
+          tar -tzvf out/RustyMCLA-Launcher-linux-arm64.tar.gz
+      - name: Open the launcher window
+        run: |
+          # Still open after 10 seconds (timeout ends it with 124): it started.
+          status=0
+          HOME="$RUNNER_TEMP/home" xvfb-run -a -s "-screen 0 860x640x24" \
+            timeout 10 launcher/target/release/rusty-mcla-launcher || status=$?
+          test "$status" = 124
