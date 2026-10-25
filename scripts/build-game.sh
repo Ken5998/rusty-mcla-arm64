@@ -29,7 +29,8 @@ trap 'rm -rf "$stage"' EXIT
 game="$stage/RustyMCLA-game"
 mkdir -p "$game/bin"
 cp "$target/release/mcla" "$target/release/mcla-tool" "$game/bin/"
-strip "$game/bin/mcla" "$game/bin/mcla-tool" 2>/dev/null || true
+# (the debug info goes, the function names stay: a crash report's backtrace names them)
+strip --strip-debug "$game/bin/mcla" "$game/bin/mcla-tool" 2>/dev/null || true
 cp "$repo/tools/steam-art/target/release/steam-art" "$game/bin/"
 mkdir -p "$game/licenses"
 cp "$repo/tools/steam-art/fonts/OFL.txt" "$game/licenses/Anton-OFL.txt"

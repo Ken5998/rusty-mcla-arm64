@@ -17,12 +17,16 @@ game="$work/stage/RustyMCLA-game"
 mkdir -p "$game/bin" "$work/discs" "$work/home/.local/share/Steam/userdata/7/config"
 cat > "$game/bin/mcla-tool" <<'TOOL'
 #!/usr/bin/env bash
-# install <iso> <folder> ...
-[ "$1" = install ] || exit 2
-echo "[extract] 100 / 400 MB (25%)" >&2
-mkdir -p "$3/data/cache"
-echo "$@" > "$3/tool-args"
-echo '{}' > "$3/manifest.local.json"
+# install <iso> <folder> ... | plainscripts <iso> <folder>/data/cache
+case "$1" in
+    install)
+        echo "[extract] 100 / 400 MB (25%)" >&2
+        mkdir -p "$3/data/cache"
+        echo "$@" > "$3/tool-args"
+        echo '{}' > "$3/manifest.local.json" ;;
+    plainscripts) echo "$@" >> "$3/../../plainscripts-runs" ;;
+    *) exit 2 ;;
+esac
 TOOL
 printf '#!/usr/bin/env bash\necho "mcla $*"\n' > "$game/bin/mcla"
 cat > "$game/bin/steam-art" <<'ART'
@@ -53,11 +57,14 @@ ok "the install runs"
 ok "the game build is unpacked"
 grep -qF "install $disc $dir --ffmpeg $work/ffmpeg --no-download" "$dir/tool-args" || fail "mcla-tool gets the disc, the folder and ffmpeg"
 ok "mcla-tool gets the disc, the folder and ffmpeg"
+[ "$(cat "$dir/plainscripts-runs")" = "plainscripts $disc $dir/data/cache" ] || fail "the scripts are converted"
+ok "the scripts are converted"
 settings="$work/home/.local/share/RustyMCLA/settings.toml"
 grep -qx 'resolution = "1280x720"' "$settings" && grep -qx 'window_mode = "windowed"' "$settings" &&
-    grep -qx 'fps_cap = 60' "$settings" && grep -qx "data_dir = \"$dir/data/cache\"" "$settings" ||
-    { cat "$settings"; fail "the settings are 1280x720, windowed, 60 fps and point at the data"; }
-ok "the settings are 1280x720, windowed, 60 fps and point at the data"
+    grep -qx 'fps_cap = 60' "$settings" && grep -qx "data_dir = \"$dir/data/cache\"" "$settings" &&
+    grep -qx 'aa = "off"' "$settings" ||
+    { cat "$settings"; fail "the settings are 1280x720, windowed, 60 fps, no anti-aliasing and point at the data"; }
+ok "the settings are 1280x720, windowed, 60 fps, no anti-aliasing and point at the data"
 [ "$("$dir/game/mcla.sh" --x)" = "mcla --data $dir/data/cache --x" ] || fail "mcla.sh starts the game with its data"
 ok "mcla.sh starts the game with its data"
 [ -z "$(ls "$dir/artwork"/*.png 2>/dev/null)" ] || fail "no artwork unless asked"
@@ -74,14 +81,18 @@ ok "MCLA_ARTWORK=1 draws the artwork plain without a screen"
 [ "$(ls "$grid" | wc -l)" = 5 ] || fail "the artwork is in Steam's grid folder"
 ok "the game is in Steam with its artwork"
 
-# A second run with "-" keeps the disc; a settings change is written, other keys stay.
+# A second run with "-" keeps the disc; a settings change is written, other keys stay (anti-aliasing set in the game too).
 printf '[game]\nintro = "fast"\n' >> "$settings"
+sed -i 's/^aa = "off"$/aa = "2x"/' "$settings"
 MCLA_RESOLUTION=1920x1080 MCLA_WINDOW_MODE=borderless MCLA_FPS_CAP=30 MCLA_ADD_TO_STEAM=0 \
     bash "$repo/scripts/install.sh" - > "$work/second.log" 2>&1 || { cat "$work/second.log"; fail "the second run"; }
 grep -qF "Disc: $disc" "$work/second.log" || fail "the second run keeps the disc"
 grep -qx 'resolution = "1920x1080"' "$settings" && grep -qx 'window_mode = "borderless"' "$settings" &&
-    grep -qx 'fps_cap = 30' "$settings" && grep -qx 'intro = "fast"' "$settings" || { cat "$settings"; fail "the settings change"; }
+    grep -qx 'fps_cap = 30' "$settings" && grep -qx 'intro = "fast"' "$settings" && grep -qx 'aa = "2x"' "$settings" ||
+    { cat "$settings"; fail "the settings change"; }
 ok "a second run keeps the disc and changes only the settings it sets"
+[ "$(wc -l < "$dir/plainscripts-runs")" = 1 ] || fail "the scripts are converted once"
+ok "the scripts are converted once"
 
 bash "$repo/scripts/install.sh" "$work/discs/nothing.iso" > "$work/third.log" 2>&1 && fail "a missing disc stops the install"
 grep -q "error: .*nothing.iso is not a file" "$work/third.log" || fail "a missing disc is named"

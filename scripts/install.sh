@@ -153,13 +153,24 @@ fi
 # The tool resumes an interrupted install and checks what is already there.
 "$build/bin/mcla-tool" install "$disc" "$dir" --ffmpeg "$ffmpeg" --no-download
 [ -d "$dir/data/cache" ] || fail "the install made no game data in $dir/data/cache"
+# Rusty MCLA 0.6 extracts the uncompressed scripts in their plain form too; a
+# folder made before keeps them as they were on the disc, which the tool's
+# plainscripts command rewrites (once: it reads every file of the data).
+if [ ! -f "$dir/data/.scripts-plain" ]; then
+    step "Converting the game's scripts"
+    "$build/bin/mcla-tool" plainscripts "$disc" "$dir/data/cache" && : > "$dir/data/.scripts-plain" ||
+        echo "The scripts could not be converted: the game may miss some of its events"
+fi
 
 # --- Settings and the start script -----------------------------------------
 step "Writing the settings"
 user_dir="${RUSTY_MCLA_USER_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/RustyMCLA}"
+# (anti-aliasing off unless the file already says: the game's ORIGINAL is 2 - 4 samples, too much for a handheld)
+aa=()
+grep -qE '^\s*aa\s*=' "$user_dir/settings.toml" 2>/dev/null || aa=(display.aa=off)
 python3 "$repo/scripts/configure.py" "$user_dir/settings.toml" \
     "display.window_mode=$window_mode" "display.resolution=$resolution" \
-    display.vsync=true "display.fps_cap=$fps_cap" "paths.data_dir=$dir/data/cache"
+    display.vsync=true "display.fps_cap=$fps_cap" "paths.data_dir=$dir/data/cache" "${aa[@]}"
 echo "Settings: $user_dir/settings.toml ($resolution $window_mode, fps cap $fps_cap)"
 
 cat > "$game/mcla.sh.tmp" <<EOF

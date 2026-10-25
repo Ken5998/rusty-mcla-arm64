@@ -13,13 +13,13 @@ tool and adds the game to Steam, like the launchers of
 [road-trip-arm64](https://github.com/Ken5998/road-trip-arm64).
 
 **Status:** Rusty MCLA is in early development upstream (Windows only so far)
-and this is its first ARM64 Linux build. CI builds it on an ARM64 runner and
+and this is its ARM64 Linux build, played on a Retroid Pocket 6 (Adreno 740,
+ArmadaOS) at about 30 fps in 1280x720. CI builds it on an ARM64 runner and
 checks in Fedora 44 (the base of ArmadaOS) that it finds every library, opens
 a Vulkan window and that a real install gets ffmpeg with the Xbox audio
-decoders; it has not yet been played on a handheld. Expect the bugs upstream
-lists, and report ARM64-only ones here.
+decoders. Expect the bugs upstream lists, and report ARM64-only ones here.
 
-This repository holds scripts, one patch and the launcher. Releases carry the
+This repository holds scripts, three patches and the launcher. Releases carry the
 ARM64 build of the game (GPL-3.0, with its source), never any game data: the
 game data is built on the handheld from your disc, and none may be published
 here.
@@ -94,12 +94,17 @@ entry.
 
 - **Settings the install writes** into the game's own
   `~/.local/share/RustyMCLA/settings.toml`: the window mode and size, vsync,
-  the frame rate cap and the data folder. Everything else stays as the game
-  has it, with its saves and logs in the same folder.
+  the frame rate cap and the data folder, and anti-aliasing off when the file
+  does not set it yet (the game's own default, ORIGINAL, draws the scene with
+  2 to 4 samples). Everything else stays as the game has it, with its saves
+  and logs in the same folder.
+- **Lighter settings** in the game's OPTIONS (DISPLAY and PERFORMANCE):
+  RENDER SCALE below 100% draws the scene at fewer pixels, and shadows are
+  the next most costly thing on the Adreno.
 - **Resolution:** 1280x720 is the lightest. Alt+Enter cycles the game between
   a window, borderless and full screen.
 - **Speed on Adreno GPUs:** the city is drawn with one program per
-  material instead of one for all of them, which Turnip's compiler turns
+  material (and sample count) instead of one for all of them, which Turnip's compiler turns
   into a program four to eight times shorter. They are built in the
   background the first few minutes of play (the game is slower until
   then) and kept by Mesa's shader cache for the next start; the ones you
@@ -119,7 +124,7 @@ entry.
 | Path | What it does |
 | --- | --- |
 | `upstream.json` | The Rusty MCLA commit the build is made from, and the Rust version. |
-| `patches/` | Changes to Rusty MCLA for ARM64 Linux: SDL (used only for game pads) builds without X11 or Wayland; GPU time per render pass (`MCLA_GPU_TIMES=1`); the city's programs built once per material, which Adreno GPUs need, frames prepared while the GPU draws, and the city programs drawn before built at start (see Playing). |
+| `patches/` | Changes to Rusty MCLA for ARM64 Linux: SDL (used only for game pads) builds without X11 or Wayland; the city's programs built once per material, which Adreno GPUs need, those drawn before built at start; frames prepared while the GPU draws (see Playing). |
 | `scripts/build-game.sh [OUT]` | Builds `mcla` (the game), `mcla-tool` (its install tool) and `steam-art`, and packs them with the patched source for a release. |
 | `scripts/install.sh DISC\|- [DIR]` | Downloads the game build and ffmpeg ([BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds), checked against its SHA-256), builds the game data with `mcla-tool install`, writes the settings and `game/mcla.sh`, and with `MCLA_ARTWORK=1` draws the artwork. |
 | `scripts/configure.py` | Sets keys of the game's `settings.toml`, keeping the rest. |
