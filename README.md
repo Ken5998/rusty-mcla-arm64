@@ -104,9 +104,10 @@ entry.
   the window's size. 1920x1080 at 67 % costs about what 1280x720 does, with
   a sharp HUD. Shadows (OPTIONS > PERFORMANCE) are the next most costly thing
   on the Adreno.
-- **Sound:** the game plays through a 1024-frame buffer (about 21 ms) instead
-  of rodio's 100 ms, so the engine and passing cars are not heard late;
-  `MCLA_AUDIO_BUFFER=2048` if it crackles, `0` for rodio's own.
+- **Sound:** the game plays through rodio's own output (about 100 ms of
+  buffer). `MCLA_AUDIO_BUFFER=<frames>` (for example 1024) opens a shorter
+  stream instead; on the RP6 a 1024-frame stream through PipeWire stayed
+  silent, so it is off by default.
 - **Resolution:** 1280x720 is the lightest. Alt+Enter cycles the game between
   a window, borderless and full screen.
 - **Speed on Adreno GPUs:** the city is drawn with one program per
@@ -130,7 +131,7 @@ entry.
 | Path | What it does |
 | --- | --- |
 | `upstream.json` | The Rusty MCLA commit the build is made from, and the Rust version. |
-| `patches/` | Changes to Rusty MCLA for ARM64 Linux: SDL (used only for game pads) builds without X11 or Wayland; the city's programs built once per material, which Adreno GPUs need, those drawn before built at start; frames prepared while the GPU draws; a short sound buffer (see Playing). |
+| `patches/` | Changes to Rusty MCLA for ARM64 Linux: SDL (used only for game pads) builds without X11 or Wayland; the city's programs built once per material, which Adreno GPUs need, those drawn before built at start; frames prepared while the GPU draws; an optional shorter sound buffer (see Playing). |
 | `scripts/build-game.sh [OUT]` | Builds `mcla` (the game), `mcla-tool` (its install tool) and `steam-art`, and packs them with the patched source for a release. |
 | `scripts/install.sh DISC\|- [DIR]` | Downloads the game build and ffmpeg ([BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds), checked against its SHA-256), builds the game data with `mcla-tool install`, writes the settings and `game/mcla.sh`, and with `MCLA_ARTWORK=1` draws the artwork. |
 | `scripts/configure.py` | Sets keys of the game's `settings.toml`, keeping the rest. |

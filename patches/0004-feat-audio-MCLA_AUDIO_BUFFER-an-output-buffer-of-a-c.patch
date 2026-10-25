@@ -1,16 +1,16 @@
-From 7e2e651a8a4bcebcf8e2bacbcc47d02a38ac1d86 Mon Sep 17 00:00:00 2001
+From 25cb7ab5ae970990054b4f6fc6a439c4b635ea0c Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Kenan=20Kasumovi=C4=87?=
  <46025606+Ken5998@users.noreply.github.com>
 Date: Sun, 25 Oct 2026 17:17:12 +0000
-Subject: [PATCH] fix(audio): a short output buffer, so sounds are not heard
- late on Linux
+Subject: [PATCH] feat(audio): MCLA_AUDIO_BUFFER, an output buffer of a chosen
+ size
 
-rodio's own stream asks ALSA for a 100 ms buffer, and through PipeWire
-the engine's revs and the cars passing by came audibly late. Play
-rodio's mixer through a cpal stream of our own with a fixed buffer of
-MCLA_AUDIO_BUFFER frames (default 1024, about 21 ms at 48 kHz); 0, a
-device without f32 samples or one that refuses the size fall back to
-rodio's stream.
+rodio's own stream asks ALSA for a 100 ms buffer. MCLA_AUDIO_BUFFER=<frames>
+plays rodio's mixer through a cpal stream of the game's own with that
+fixed buffer instead, for a shorter delay; a device without f32 samples
+or one that refuses the size falls back to rodio's stream. Off by
+default: on the Retroid Pocket 6 through PipeWire a 1024-frame stream
+opened without error and played nothing.
 ---
  mcla-rs/crates/game/src/audio.rs | 77 +++++++++++++++++++++++++++-----
  1 file changed, 66 insertions(+), 11 deletions(-)
