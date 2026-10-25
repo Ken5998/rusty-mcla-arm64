@@ -174,8 +174,8 @@ chmod +x "$game/mcla.sh.tmp"
 mv "$game/mcla.sh.tmp" "$game/mcla.sh"
 echo "Start script: $game/mcla.sh"
 
-# --- Artwork ---------------------------------------------------------------
-if [ "${MCLA_ARTWORK:-1}" != 0 ]; then
+# --- Artwork (only with MCLA_ARTWORK=1: it takes a while, and SteamGridDB has better)
+if [ "${MCLA_ARTWORK:-0}" = 1 ]; then
     step "Drawing the Steam artwork"
     bash "$repo/scripts/artwork.sh" "$dir" || echo "The artwork could not be drawn: the Steam entry gets none"
 fi

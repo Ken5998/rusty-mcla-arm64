@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Adds Midnight Club: Los Angeles to the Steam library, as a non-Steam game
-# that runs natively (no Proton), with the artwork install.sh drew.
+# that runs natively (no Proton), with the artwork install.sh drew if any.
 # install.sh runs it at the end when asked; run it by hand after an earlier
 # install, or again to redo the entry.
 #

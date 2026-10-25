@@ -9,7 +9,8 @@ DIST is the game folder (with mcla.sh in it), ARTWORK the folder
 install.sh downloaded the pictures to (capsule.png, wide.png, hero.png,
 icon.png; a logo.png there would go in too).
 Running it again replaces the entry instead of adding a second one, and
-does nothing when the entry and the images are already there.
+does nothing when the entry is already there. Images and an icon already in
+Steam (picked with SteamGridDB, say) are kept; ours only fill the gaps.
 
 Steam keeps the library in memory and writes it back when it closes, so a
 running Steam is closed first and started again afterwards.
@@ -161,13 +162,12 @@ def up_to_date(home: Path, dist: Path, artwork: Path) -> bool:
         except (OSError, ValueError, IndexError):
             return False
         wanted = {"appid": struct.unpack("<i", struct.pack("<I", unsigned))[0], "AppName": NAME, "Exe": exe,
-                  "StartDir": f'"{dist}"', "icon": str(artwork / "icon.png")}
+                  "StartDir": f'"{dist}"'}
         if len(entries) != 1 or any(field(entries[0], k) != v for k, v in wanted.items()):
             return False
         for source, name in GRID:
             image = config / "grid" / name.format(unsigned)
-            if (artwork / source).is_file() and (
-                    not image.is_file() or image.read_bytes() != (artwork / source).read_bytes()):
+            if (artwork / source).is_file() and not image.is_file():
                 return False
     return bool(configs)
 
@@ -187,9 +187,10 @@ def add(home: Path, dist: Path, artwork: Path) -> int:
             backup = path.with_name("shortcuts.vdf.rustymcla-backup")
             if not backup.exists():
                 shutil.copyfile(path, backup)
+        icon = str(artwork / "icon.png") if (artwork / "icon.png").is_file() else ""
         entry = {
             "appid": signed, "AppName": NAME, "Exe": exe, "StartDir": f'"{dist}"',
-            "icon": str(artwork / "icon.png"), "ShortcutPath": "", "LaunchOptions": "",
+            "icon": icon, "ShortcutPath": "", "LaunchOptions": "",
             "IsHidden": 0, "AllowDesktopConfig": 1, "AllowOverlay": 1, "OpenVR": 0,
             "Devkit": 0, "DevkitGameID": "", "DevkitOverrideAppID": 0, "LastPlayTime": 0,
             "FlatpakAppID": "", "tags": {},
@@ -198,7 +199,9 @@ def add(home: Path, dist: Path, artwork: Path) -> int:
         # it in Steam (launch options, collections, last played).
         ours = [e for e in shortcuts.values() if is_ours(e, exe)]
         for key, value in (ours[0] if ours else {}).items():
-            if key.lower() in ("appid", "appname", "exe", "startdir", "icon"):
+            if key.lower() in ("appid", "appname", "exe", "startdir"):
+                continue
+            if key.lower() == "icon" and not value:
                 continue
             entry[next((k for k in entry if k.lower() == key.lower()), key)] = value
         entries = [e for e in shortcuts.values() if not is_ours(e, exe)] + [entry]
@@ -208,7 +211,7 @@ def add(home: Path, dist: Path, artwork: Path) -> int:
         grid = config / "grid"
         grid.mkdir(exist_ok=True)
         for source, name in GRID:
-            if (artwork / source).is_file():
+            if (artwork / source).is_file() and not (grid / name.format(unsigned)).is_file():
                 shutil.copyfile(artwork / source, grid / name.format(unsigned))
         accounts += 1
     return accounts
@@ -225,7 +228,7 @@ def main(argv: list[str]) -> int:
     if not steam_roots(home):
         sys.exit("error: Steam is not set up for this user: start it and sign in once")
     if up_to_date(home, dist, artwork):
-        print(f"{NAME} is already in Steam with its artwork")
+        print(f"{NAME} is already in Steam")
         return 0
     restart = close_steam()
     try:

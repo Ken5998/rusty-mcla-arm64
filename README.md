@@ -8,7 +8,7 @@ a new engine that reads the game's data from your own disc and draws with
 wgpu, which on Linux means Vulkan, straight onto the handheld's Turnip driver.
 A launcher installs the ARM64 build of the game from this repository's
 releases, builds the game data from your disc with the game's own install
-tool and adds the game to Steam with its artwork, like the launchers of
+tool and adds the game to Steam, like the launchers of
 [pinyon-shift-arm64](https://github.com/Ken5998/pinyon-shift-arm64) and
 [road-trip-arm64](https://github.com/Ken5998/road-trip-arm64).
 
@@ -77,7 +77,7 @@ MCLA_RESOLUTION=1600x900 rusty-mcla-arm64/scripts/install.sh -
 | `MCLA_WINDOW_MODE` | `windowed` | `windowed`, `borderless` (full screen at the screen's resolution) or `fullscreen`. |
 | `MCLA_FPS_CAP` | `60` | The frame rate cap, `0` for none (vsync stays on). |
 | `MCLA_ADD_TO_STEAM` | `0` | `1` adds the game to Steam at the end (`scripts/add-to-steam.sh` does it later). |
-| `MCLA_ARTWORK` | `1` | `0` skips the Steam artwork. |
+| `MCLA_ARTWORK` | `0` | `1` draws Steam artwork from two screenshots of the game (a few minutes). |
 
 The game starts with `~/.local/share/RustyMCLA-arm64/game/mcla.sh`.
 
@@ -85,9 +85,10 @@ The game starts with `~/.local/share/RustyMCLA-arm64/game/mcla.sh`.
 
 Start the game from Steam: on ArmadaOS the handheld's controls reach a game
 only when Steam launches it. Steam adds it as a non-Steam game (native, no
-Proton). Its artwork is drawn on the handheld at install time: the game takes
-two screenshots of itself from your data (your car at the Hollywood garage, at
-night and at dusk) and `steam-art` lays the title over them. Steam is closed
+Proton), without artwork: pick it with SteamGridDB (the Decky plugin), and an
+Update keeps what you picked. With `MCLA_ARTWORK=1` the install draws its own
+instead: the game takes two screenshots of itself from your data and
+`steam-art` lays the title over them. Steam is closed
 for a moment and started again, since it would otherwise overwrite the new
 entry.
 
@@ -120,10 +121,10 @@ entry.
 | `upstream.json` | The Rusty MCLA commit the build is made from, and the Rust version. |
 | `patches/` | Changes to Rusty MCLA for ARM64 Linux: SDL (used only for game pads) builds without X11 or Wayland; GPU time per render pass (`MCLA_GPU_TIMES=1`); the city's programs built once per material, which Adreno GPUs need, frames prepared while the GPU draws, and the city programs drawn before built at start (see Playing). |
 | `scripts/build-game.sh [OUT]` | Builds `mcla` (the game), `mcla-tool` (its install tool) and `steam-art`, and packs them with the patched source for a release. |
-| `scripts/install.sh DISC\|- [DIR]` | Downloads the game build and ffmpeg ([BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds), checked against its SHA-256), builds the game data with `mcla-tool install`, writes the settings and `game/mcla.sh`, and draws the artwork. |
+| `scripts/install.sh DISC\|- [DIR]` | Downloads the game build and ffmpeg ([BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds), checked against its SHA-256), builds the game data with `mcla-tool install`, writes the settings and `game/mcla.sh`, and with `MCLA_ARTWORK=1` draws the artwork. |
 | `scripts/configure.py` | Sets keys of the game's `settings.toml`, keeping the rest. |
 | `scripts/artwork.sh [DIR]`, `tools/steam-art/` | The game's screenshots and the artwork drawn over them. |
-| `scripts/add-to-steam.sh [DIR]` | Adds the game to Steam with its artwork (`scripts/add-to-steam.py` writes the entry). |
+| `scripts/add-to-steam.sh [DIR]` | Adds the game to Steam (`scripts/add-to-steam.py` writes the entry; images already in Steam are kept). |
 | `launcher/` | The launcher window (Rust, egui): runs `scripts/install.sh` from a fresh copy of this repository, then plays the game or adds it to Steam. |
 | `tests/` | The install with a stand-in game build, and the Steam entry against a made-up Steam folder. |
 | `.github/workflows/ci.yml` | The ARM64 build, its checks in Fedora 44 and the launcher, on ARM64 runners. |

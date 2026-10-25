@@ -2,7 +2,7 @@
 # Runs scripts/install.sh against a made-up game build (stand-ins for mcla,
 # mcla-tool and steam-art that print what they are asked), a fake disc and
 # a made-up Steam library, then checks the settings, the start script, the
-# artwork and a second run that keeps everything.
+# Steam entry, the artwork when asked and a run that keeps everything.
 #
 #   tests/install_test.sh
 set -euo pipefail
@@ -60,10 +60,17 @@ grep -qx 'resolution = "1280x720"' "$settings" && grep -qx 'window_mode = "windo
 ok "the settings are 1280x720, windowed, 60 fps and point at the data"
 [ "$("$dir/game/mcla.sh" --x)" = "mcla --data $dir/data/cache --x" ] || fail "mcla.sh starts the game with its data"
 ok "mcla.sh starts the game with its data"
-[ "$(ls "$dir/artwork"/*.png | wc -l)" = 5 ] || fail "five pictures of artwork"
-grep -q "artwork in $dir/artwork (0 screenshots)" "$work/first.log" || fail "no screenshots without a screen"
-ok "the artwork is drawn plain without a screen"
+[ -z "$(ls "$dir/artwork"/*.png 2>/dev/null)" ] || fail "no artwork unless asked"
 grid="$work/home/.local/share/Steam/userdata/7/config/grid"
+grep -qF "/game/mcla.sh" "$work/home/.local/share/Steam/userdata/7/config/shortcuts.vdf" && [ -z "$(ls "$grid" 2>/dev/null)" ] ||
+    fail "the game is in Steam, without artwork"
+ok "the game is in Steam, without artwork unless asked"
+
+# MCLA_ARTWORK=1 draws it (plain without a screen) and fills Steam's grid folder.
+MCLA_ARTWORK=1 bash "$repo/scripts/install.sh" - > "$work/art.log" 2>&1 || { cat "$work/art.log"; fail "the run with artwork"; }
+[ "$(ls "$dir/artwork"/*.png | wc -l)" = 5 ] || fail "five pictures of artwork"
+grep -q "artwork in $dir/artwork (0 screenshots)" "$work/art.log" || fail "no screenshots without a screen"
+ok "MCLA_ARTWORK=1 draws the artwork plain without a screen"
 [ "$(ls "$grid" | wc -l)" = 5 ] || fail "the artwork is in Steam's grid folder"
 ok "the game is in Steam with its artwork"
 

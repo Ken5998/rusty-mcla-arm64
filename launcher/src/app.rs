@@ -265,7 +265,7 @@ impl LauncherApp {
         });
         ui.checkbox(&mut self.settings.fill, "Borderless full screen at the screen's resolution in Desktop Mode")
             .on_hover_text("Off: a window of the size above, which Steam's Game Mode scales to the screen");
-        ui.checkbox(&mut self.settings.add_to_steam, "Add to Steam with artwork when the install is done");
+        ui.checkbox(&mut self.settings.add_to_steam, "Add to Steam when the install is done");
         let installed = &self.installed;
         if self.paths.built()
             && (installed.resolution != self.settings.resolution
@@ -304,7 +304,7 @@ impl LauncherApp {
                 }
                 if ui
                     .add_enabled(built, big("Add to Steam"))
-                    .on_hover_text("Adds the game to the Steam library with its artwork (Steam restarts)")
+                    .on_hover_text("Adds the game to the Steam library (Steam restarts)")
                     .clicked()
                 {
                     self.start(Task::Steam);
