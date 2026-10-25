@@ -1,8 +1,9 @@
 name: Shader stats
 
-# Throwaway diagnostics: compiles shader-stats/*.wgsl (naga -> SPIR-V) with
-# Mesa's Adreno compiler (ir3, as Turnip on the Retroid Pocket 6 does) and
-# prints the compiler's statistics for each fragment and vertex entry point.
+# Throwaway diagnostics: builds the city pipeline from shader-stats/*.wgsl with
+# Turnip (Mesa's Adreno Vulkan driver, as on the Retroid Pocket 6) running on
+# Mesa's drm-shim, which pretends to be an Adreno 740, and prints what the
+# Adreno compiler (ir3) made of the vertex and fragment programs.
 
 on:
   push:
@@ -14,6 +15,7 @@ permissions:
 
 env:
   MESA_REF: mesa-26.2.4
+  CARGO_TERM_COLOR: never
 
 jobs:
   stats:
@@ -25,46 +27,45 @@ jobs:
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q --no-install-recommends ninja-build bison flex python3-mako python3-yaml python3-ply \
-            libdrm-dev libexpat1-dev zlib1g-dev libzstd-dev libelf-dev glslang-tools pkg-config spirv-tools
+            libdrm-dev libexpat1-dev zlib1g-dev libzstd-dev libelf-dev glslang-tools pkg-config libvulkan1 libvulkan-dev
           pip install --user --break-system-packages 'meson>=1.4'
       - uses: actions/cache@v4
         id: mesa
         with:
-          path: mesa-build/ir3_compiler
-          key: ir3-${{ env.MESA_REF }}-v2
-      - name: Build Mesa's ir3 compiler
+          path: turnip
+          key: turnip-shim-${{ env.MESA_REF }}-v1
+      - name: Build Turnip and the drm-shim
         if: steps.mesa.outputs.cache-hit != 'true'
         run: |
           curl -fsSL "https://gitlab.freedesktop.org/mesa/mesa/-/archive/$MESA_REF/mesa-$MESA_REF.tar.gz" | tar -xz
           cd "mesa-$MESA_REF"
-          meson setup build -Dgallium-drivers=freedreno -Dvulkan-drivers= -Dtools=freedreno -Dplatforms= \
-            -Dllvm=disabled -Dglx=disabled -Degl=disabled -Dgbm=disabled -Dgles1=disabled -Dgles2=disabled \
-            -Dvideo-codecs= -Dvalgrind=disabled -Dlibunwind=disabled -Dzstd=enabled -Dbuildtype=release > ../meson.log 2>&1 || { tail -60 ../meson.log; exit 1; }
-          grep -rn "ir3_cmdline\|ir3_compiler'" --include=meson.build src | head
-          for f in $(grep -rl "ir3_cmdline" --include=meson.build src); do grep -n "ir3_cmdline" -B12 -A14 "$f"; done
-          ninja -C build -t targets all | grep -iE "ir3" | grep -v "\.o:" | head -20
-          t="$(ninja -C build -t targets all | grep -oE '^[^:]*/ir3_compiler(:|$)' | tr -d : | head -1)"
-          echo "target: $t"
-          ninja -C build "$t" > ../ninja.log 2>&1 || { tail -40 ../ninja.log; exit 1; }
-          mkdir -p ../mesa-build && cp "build/$t" ../mesa-build/ir3_compiler
-      - name: Install naga
-        run: cargo install naga-cli --version 24.0.0 --locked
+          grep -n "getenv" src/freedreno/drm-shim/*.c | head
+          meson setup build -Dvulkan-drivers=freedreno -Dgallium-drivers= -Dfreedreno-kmds=msm -Dtools=drm-shim \
+            -Dplatforms= -Dopengl=false -Dllvm=disabled -Dglx=disabled -Degl=disabled -Dgbm=disabled -Dgles1=disabled -Dgles2=disabled \
+            -Dvideo-codecs= -Dvalgrind=disabled -Dlibunwind=disabled -Dbuildtype=release > ../meson.log 2>&1 || { tail -60 ../meson.log; exit 1; }
+          ninja -C build > ../ninja.log 2>&1 || { tail -40 ../ninja.log; exit 1; }
+          mkdir -p ../turnip
+          cp build/src/freedreno/vulkan/libvulkan_freedreno.so build/src/freedreno/drm-shim/libfreedreno_noop_drm_shim.so ../turnip/
+          ls ../turnip
+      - name: Build the harness
+        run: cargo build --release --manifest-path tools/shader-stats/Cargo.toml
       - name: Compile and report
         run: |
-          ir3=mesa-build/ir3_compiler
-          $ir3 --help 2>&1 | head -40 || true
+          t="$PWD/turnip"
+          printf '{"file_format_version":"1.0.0","ICD":{"library_path":"%s/libvulkan_freedreno.so","api_version":"1.4.0"}}\n' "$t" > "$t/icd.json"
+          export VK_ICD_FILENAMES="$t/icd.json" VK_DRIVER_FILES="$t/icd.json"
+          export LD_PRELOAD="$t/libfreedreno_noop_drm_shim.so" FD_GPU_ID=740 FD_CHIP_ID=0x43050a01
+          export IR3_SHADER_DEBUG=disasm RUST_LOG=warn
+          mkdir -p out
           for f in shader-stats/*.wgsl; do
-            spv="${f%.wgsl}.spv"
-            naga "$f" "$spv"
-            for e in fs_main vs_main; do
-              echo "=================== $f $e"
-              $ir3 --gpu 740 "$spv" "$e" > "${f%.wgsl}.$e.txt" 2>&1 || echo "(exit $?)"
-              grep -E "^; .*(instr|nops|half|full|sstall|spill|fill|max_reg|waves|loops|constlen|preamble)" "${f%.wgsl}.$e.txt" | head -30
-              tail -5 "${f%.wgsl}.$e.txt"
-            done
+            n="$(basename "$f" .wgsl)"
+            timeout 900 tools/shader-stats/target/release/shader-stats "$f" > "out/$n.txt" 2> "out/$n.err" || echo "($n: exit $?)"
+            echo "=================== $n"
+            tail -3 "out/$n.err"
+            grep -E "^; .*(instr|nops|half|full|sstall|spill|fill|max_reg|waves|loops|constlen|preamble)" "out/$n.txt" | head -24
           done
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: shader-stats
-          path: shader-stats/*.txt
+          path: out/
