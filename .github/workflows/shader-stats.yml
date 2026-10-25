@@ -1,0 +1,67 @@
+name: Shader stats
+
+# Throwaway diagnostics: compiles shader-stats/*.wgsl (naga -> SPIR-V) with
+# Mesa's Adreno compiler (ir3, as Turnip on the Retroid Pocket 6 does) and
+# prints the compiler's statistics for each fragment and vertex entry point.
+
+on:
+  push:
+    branches: ['ci/shader-stats']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  MESA_REF: mesa-26.2.4
+
+jobs:
+  stats:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install build tools
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends ninja-build bison flex python3-mako python3-yaml python3-ply \
+            libdrm-dev libexpat1-dev zlib1g-dev libzstd-dev libelf-dev glslang-tools pkg-config spirv-tools
+          pip install --user --break-system-packages 'meson>=1.4'
+      - uses: actions/cache@v4
+        id: mesa
+        with:
+          path: mesa-build/ir3_compiler
+          key: ir3-${{ env.MESA_REF }}-v1
+      - name: Build Mesa's ir3 compiler
+        if: steps.mesa.outputs.cache-hit != 'true'
+        run: |
+          curl -fsSL "https://gitlab.freedesktop.org/mesa/mesa/-/archive/$MESA_REF/mesa-$MESA_REF.tar.gz" | tar -xz
+          cd "mesa-$MESA_REF"
+          grep -n "ir3_compiler" -B3 -A12 src/freedreno/ir3/meson.build || true
+          meson setup build -Dgallium-drivers=freedreno -Dvulkan-drivers= -Dtools=freedreno -Dplatforms= \
+            -Dllvm=disabled -Dglx=disabled -Degl=disabled -Dgbm=disabled -Dgles1=disabled -Dgles2=disabled \
+            -Dvideo-codecs= -Dvalgrind=disabled -Dlibunwind=disabled -Dzstd=enabled -Dbuildtype=release || { cat build/meson-logs/meson-log.txt | tail -60; exit 1; }
+          ninja -C build -t targets all | grep -i "ir3_compiler\|ir3_disasm" | head
+          ninja -C build src/freedreno/ir3/ir3_compiler
+          mkdir -p ../mesa-build && cp build/src/freedreno/ir3/ir3_compiler ../mesa-build/
+      - name: Install naga
+        run: cargo install naga-cli --version 24.0.0 --locked
+      - name: Compile and report
+        run: |
+          ir3=mesa-build/ir3_compiler
+          $ir3 --help 2>&1 | head -40 || true
+          for f in shader-stats/*.wgsl; do
+            spv="${f%.wgsl}.spv"
+            naga "$f" "$spv"
+            for e in fs_main vs_main; do
+              echo "=================== $f $e"
+              $ir3 --gpu 740 "$spv" "$e" > "${f%.wgsl}.$e.txt" 2>&1 || echo "(exit $?)"
+              grep -E "^; .*(instr|nops|half|full|sstall|spill|fill|max_reg|waves|loops|constlen|preamble)" "${f%.wgsl}.$e.txt" | head -30
+              tail -5 "${f%.wgsl}.$e.txt"
+            done
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: shader-stats
+          path: shader-stats/*.txt
