@@ -31,19 +31,19 @@ jobs:
         id: mesa
         with:
           path: mesa-build/ir3_compiler
-          key: ir3-${{ env.MESA_REF }}-v1
+          key: ir3-${{ env.MESA_REF }}-v2
       - name: Build Mesa's ir3 compiler
         if: steps.mesa.outputs.cache-hit != 'true'
         run: |
           curl -fsSL "https://gitlab.freedesktop.org/mesa/mesa/-/archive/$MESA_REF/mesa-$MESA_REF.tar.gz" | tar -xz
           cd "mesa-$MESA_REF"
-          grep -n "ir3_compiler" -B3 -A12 src/freedreno/ir3/meson.build || true
           meson setup build -Dgallium-drivers=freedreno -Dvulkan-drivers= -Dtools=freedreno -Dplatforms= \
             -Dllvm=disabled -Dglx=disabled -Degl=disabled -Dgbm=disabled -Dgles1=disabled -Dgles2=disabled \
-            -Dvideo-codecs= -Dvalgrind=disabled -Dlibunwind=disabled -Dzstd=enabled -Dbuildtype=release || { cat build/meson-logs/meson-log.txt | tail -60; exit 1; }
-          ninja -C build -t targets all | grep -i "ir3_compiler\|ir3_disasm" | head
-          ninja -C build src/freedreno/ir3/ir3_compiler
-          mkdir -p ../mesa-build && cp build/src/freedreno/ir3/ir3_compiler ../mesa-build/
+            -Dvideo-codecs= -Dvalgrind=disabled -Dlibunwind=disabled -Dzstd=enabled -Dbuildtype=release > ../meson.log 2>&1 || { tail -60 ../meson.log; exit 1; }
+          t="$(ninja -C build -t targets all | grep -oE '^[^:]*/ir3_compiler(:|$)' | tr -d : | head -1)"
+          echo "target: $t"
+          ninja -C build "$t" > ../ninja.log 2>&1 || { tail -40 ../ninja.log; exit 1; }
+          mkdir -p ../mesa-build && cp "build/$t" ../mesa-build/ir3_compiler
       - name: Install naga
         run: cargo install naga-cli --version 24.0.0 --locked
       - name: Compile and report
