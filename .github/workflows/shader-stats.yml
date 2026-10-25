@@ -40,6 +40,9 @@ jobs:
           meson setup build -Dgallium-drivers=freedreno -Dvulkan-drivers= -Dtools=freedreno -Dplatforms= \
             -Dllvm=disabled -Dglx=disabled -Degl=disabled -Dgbm=disabled -Dgles1=disabled -Dgles2=disabled \
             -Dvideo-codecs= -Dvalgrind=disabled -Dlibunwind=disabled -Dzstd=enabled -Dbuildtype=release > ../meson.log 2>&1 || { tail -60 ../meson.log; exit 1; }
+          grep -rn "ir3_cmdline\|ir3_compiler'" --include=meson.build src | head
+          for f in $(grep -rl "ir3_cmdline" --include=meson.build src); do grep -n "ir3_cmdline" -B12 -A14 "$f"; done
+          ninja -C build -t targets all | grep -iE "ir3" | grep -v "\.o:" | head -20
           t="$(ninja -C build -t targets all | grep -oE '^[^:]*/ir3_compiler(:|$)' | tr -d : | head -1)"
           echo "target: $t"
           ninja -C build "$t" > ../ninja.log 2>&1 || { tail -40 ../ninja.log; exit 1; }
