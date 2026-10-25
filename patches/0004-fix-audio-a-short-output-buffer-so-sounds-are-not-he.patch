@@ -1,0 +1,153 @@
+From 7e2e651a8a4bcebcf8e2bacbcc47d02a38ac1d86 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Kenan=20Kasumovi=C4=87?=
+ <46025606+Ken5998@users.noreply.github.com>
+Date: Sun, 25 Oct 2026 17:17:12 +0000
+Subject: [PATCH] fix(audio): a short output buffer, so sounds are not heard
+ late on Linux
+
+rodio's own stream asks ALSA for a 100 ms buffer, and through PipeWire
+the engine's revs and the cars passing by came audibly late. Play
+rodio's mixer through a cpal stream of our own with a fixed buffer of
+MCLA_AUDIO_BUFFER frames (default 1024, about 21 ms at 48 kHz); 0, a
+device without f32 samples or one that refuses the size fall back to
+rodio's stream.
+---
+ mcla-rs/crates/game/src/audio.rs | 77 +++++++++++++++++++++++++++-----
+ 1 file changed, 66 insertions(+), 11 deletions(-)
+
+diff --git a/mcla-rs/crates/game/src/audio.rs b/mcla-rs/crates/game/src/audio.rs
+index 7e66e34..28acd09 100644
+--- a/mcla-rs/crates/game/src/audio.rs
++++ b/mcla-rs/crates/game/src/audio.rs
+@@ -16,6 +16,63 @@ use std::time::Duration;
+ const RATE: u32 = 44100;
+ const TAB: char = '\u{9}';
+ 
++/// The sound card: rodio's mixer played through a cpal stream of the game's own, whose buffer is short
++/// (rodio's own stream asks ALSA for 100 ms; through PipeWire the engine and the cars passing by were
++/// heard late on Linux). MCLA_AUDIO_BUFFER=<frames> sets it (default 1024, about 21 ms at 48 kHz);
++/// 0, or a device that refuses it, takes rodio's stream as upstream.
++#[allow(dead_code)] // (the streams are held only to keep them playing)
++enum Out {
++    Rodio(OutputStream, OutputStreamHandle),
++    Own(Arc<rodio::dynamic_mixer::DynamicMixerController<f32>>, rodio::cpal::Stream),
++}
++
++impl Out {
++    fn open() -> Option<Out> {
++        let frames = std::env::var("MCLA_AUDIO_BUFFER").ok().and_then(|v| v.trim().parse::<u32>().ok()).unwrap_or(1024);
++        if frames > 0 {
++            match Self::own(frames) {
++                Ok(out) => return Some(out),
++                Err(e) => log::warn!("audio: no {frames}-frame output stream ({e}), rodio's own"),
++            }
++        }
++        let (stream, handle) = OutputStream::try_default().ok()?;
++        Some(Out::Rodio(stream, handle))
++    }
++
++    fn own(frames: u32) -> Result<Out, String> {
++        use rodio::cpal::traits::{HostTrait, StreamTrait};
++        use rodio::DeviceTrait;
++        let device = rodio::cpal::default_host().default_output_device().ok_or("no output device")?;
++        let def = device.default_output_config().map_err(|e| e.to_string())?;
++        if def.sample_format() != rodio::cpal::SampleFormat::F32 {
++            return Err(format!("{:?} samples", def.sample_format()));
++        }
++        let frames = match def.buffer_size() {
++            rodio::cpal::SupportedBufferSize::Range { min, max } => frames.clamp(*min, *max),
++            rodio::cpal::SupportedBufferSize::Unknown => frames,
++        };
++        let config = rodio::cpal::StreamConfig { channels: def.channels(), sample_rate: def.sample_rate(), buffer_size: rodio::cpal::BufferSize::Fixed(frames) };
++        let (mixer, mut rx) = rodio::dynamic_mixer::mixer::<f32>(config.channels, config.sample_rate.0);
++        let stream = device
++            .build_output_stream::<f32, _, _>(&config, move |data, _| data.iter_mut().for_each(|d| *d = rx.next().unwrap_or(0.0)), |e| log::warn!("audio: output stream: {e}"), None)
++            .map_err(|e| e.to_string())?;
++        stream.play().map_err(|e| e.to_string())?;
++        log::info!("audio: output {} Hz, {} channels, buffer {frames} frames ({:.0} ms)", config.sample_rate.0, config.channels, frames as f32 * 1000.0 / config.sample_rate.0 as f32);
++        Ok(Out::Own(mixer, stream))
++    }
++
++    fn sink(&self) -> Result<Sink, rodio::PlayError> {
++        match self {
++            Out::Rodio(_, handle) => Sink::try_new(handle),
++            Out::Own(mixer, _) => {
++                let (sink, queue) = Sink::new_idle();
++                mixer.add(queue);
++                Ok(sink)
++            }
++        }
++    }
++}
++
+ /// Decoded PCM: mono, or interleaved stereo (folded streams).
+ pub struct Clip {
+     pub data: Vec<f32>,
+@@ -263,8 +320,7 @@ struct EngineBank {
+ }
+ 
+ pub struct Audio {
+-    _stream: Option<OutputStream>,
+-    handle: Option<OutputStreamHandle>,
++    handle: Option<Out>,
+     _sink: Option<Sink>,
+     /// offline rendering (tests): the mix is pulled by the game loop and kept here
+     offline: Option<(MixSource, Vec<f32>)>,
+@@ -356,14 +412,14 @@ impl Audio {
+     fn create(data_dir: &str, offline: bool) -> Option<Audio> {
+         let mixer = Arc::new(Mutex::new(Mixer { voices: Vec::new(), master: 0.9, slow: None }));
+         let src = MixSource { mixer: mixer.clone(), buf: Vec::new(), at: 0 };
+-        let (stream, handle, sink, off) = if offline {
+-            (None, None, None, Some((src, Vec::new())))
++        let (handle, sink, off) = if offline {
++            (None, None, Some((src, Vec::new())))
+         } else {
+-            let (stream, handle) = OutputStream::try_default().ok()?;
+-            let sink = Sink::try_new(&handle).ok()?;
++            let out = Out::open()?;
++            let sink = out.sink().ok()?;
+             sink.append(src);
+             sink.play();
+-            (Some(stream), Some(handle), Some(sink), None)
++            (Some(out), Some(sink), None)
+         };
+         // <data>/../audio_pc  (data = .../extracted/cache)
+         let root = Path::new(data_dir).parent().map(|p| p.join("audio_pc")).unwrap_or_else(|| PathBuf::from("audio_pc"));
+@@ -379,7 +435,6 @@ impl Audio {
+         log::info!("audio: bank root {} ({}), {} music tracks", root.display(), if available { "ok" } else { "missing" }, music_files.len());
+         let seed = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.subsec_nanos()).unwrap_or(7) | 1;
+         Some(Audio {
+-            _stream: stream,
+             handle,
+             _sink: sink,
+             offline: off,
+@@ -806,7 +861,7 @@ impl Audio {
+         let Some(p) = want else { return };
+         let Ok(f) = std::fs::File::open(&p) else { return };
+         let Ok(dec) = rodio::Decoder::new(std::io::BufReader::new(f)) else { return };
+-        if let Ok(s) = Sink::try_new(handle) {
++        if let Ok(s) = handle.sink() {
+             s.set_volume(volume);
+             s.append(dec.repeat_infinite());
+             s.play();
+@@ -839,7 +894,7 @@ impl Audio {
+         let (Some(handle), Some(rel)) = (self.handle.as_ref(), rel) else { return };
+         let Ok(f) = std::fs::File::open(self.root.join(rel)) else { return };
+         let Ok(dec) = rodio::Decoder::new(std::io::BufReader::new(f)) else { return };
+-        if let Ok(s) = Sink::try_new(handle) {
++        if let Ok(s) = handle.sink() {
+             s.set_volume(volume);
+             s.append(dec.skip_duration(Duration::from_secs_f32(at.max(0.0))));
+             s.play();
+@@ -1002,7 +1057,7 @@ impl Audio {
+             old.stop();
+         }
+         let Some(handle) = self.handle.as_ref() else { return };
+-        if let Ok(s) = Sink::try_new(handle) {
++        if let Ok(s) = handle.sink() {
+             self.music_gain = Self::stream_gain(&p);
+             s.set_volume(self.music_volume * self.music_gain);
+             s.append(dec);
+-- 
+2.43.0
+

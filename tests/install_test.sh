@@ -62,7 +62,7 @@ ok "the scripts are converted"
 settings="$work/home/.local/share/RustyMCLA/settings.toml"
 grep -qx 'resolution = "1280x720"' "$settings" && grep -qx 'window_mode = "windowed"' "$settings" &&
     grep -qx 'fps_cap = 60' "$settings" && grep -qx "data_dir = \"$dir/data/cache\"" "$settings" &&
-    grep -qx 'aa = "off"' "$settings" ||
+    grep -qx 'aa = "off"' "$settings" && grep -qx 'render_scale = 1' "$settings" ||
     { cat "$settings"; fail "the settings are 1280x720, windowed, 60 fps, no anti-aliasing and point at the data"; }
 ok "the settings are 1280x720, windowed, 60 fps, no anti-aliasing and point at the data"
 [ "$("$dir/game/mcla.sh" --x)" = "mcla --data $dir/data/cache --x" ] || fail "mcla.sh starts the game with its data"
@@ -84,11 +84,12 @@ ok "the game is in Steam with its artwork"
 # A second run with "-" keeps the disc; a settings change is written, other keys stay (anti-aliasing set in the game too).
 printf '[game]\nintro = "fast"\n' >> "$settings"
 sed -i 's/^aa = "off"$/aa = "2x"/' "$settings"
-MCLA_RESOLUTION=1920x1080 MCLA_WINDOW_MODE=borderless MCLA_FPS_CAP=30 MCLA_ADD_TO_STEAM=0 \
+MCLA_RESOLUTION=1920x1080 MCLA_WINDOW_MODE=borderless MCLA_FPS_CAP=30 MCLA_RENDER_SCALE=0.67 MCLA_ADD_TO_STEAM=0 \
     bash "$repo/scripts/install.sh" - > "$work/second.log" 2>&1 || { cat "$work/second.log"; fail "the second run"; }
 grep -qF "Disc: $disc" "$work/second.log" || fail "the second run keeps the disc"
 grep -qx 'resolution = "1920x1080"' "$settings" && grep -qx 'window_mode = "borderless"' "$settings" &&
-    grep -qx 'fps_cap = 30' "$settings" && grep -qx 'intro = "fast"' "$settings" && grep -qx 'aa = "2x"' "$settings" ||
+    grep -qx 'fps_cap = 30' "$settings" && grep -qx 'intro = "fast"' "$settings" && grep -qx 'aa = "2x"' "$settings" &&
+    grep -qx 'render_scale = 0.67' "$settings" ||
     { cat "$settings"; fail "the settings change"; }
 ok "a second run keeps the disc and changes only the settings it sets"
 [ "$(wc -l < "$dir/plainscripts-runs")" = 1 ] || fail "the scripts are converted once"

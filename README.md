@@ -19,7 +19,7 @@ checks in Fedora 44 (the base of ArmadaOS) that it finds every library, opens
 a Vulkan window and that a real install gets ffmpeg with the Xbox audio
 decoders. Expect the bugs upstream lists, and report ARM64-only ones here.
 
-This repository holds scripts, three patches and the launcher. Releases carry the
+This repository holds scripts, four patches and the launcher. Releases carry the
 ARM64 build of the game (GPL-3.0, with its source), never any game data: the
 game data is built on the handheld from your disc, and none may be published
 here.
@@ -76,6 +76,7 @@ MCLA_RESOLUTION=1600x900 rusty-mcla-arm64/scripts/install.sh -
 | `MCLA_RESOLUTION` | `1280x720` | The game's window. 1280x720 is the Xbox 360's own resolution and gives the most frames per second; Steam's Game Mode scales the window to the screen. |
 | `MCLA_WINDOW_MODE` | `windowed` | `windowed`, `borderless` (full screen at the screen's resolution) or `fullscreen`. |
 | `MCLA_FPS_CAP` | `60` | The frame rate cap, `0` for none (vsync stays on). |
+| `MCLA_RENDER_SCALE` | `1` | The scene's size in the window, `0.5` to `1`: lower is faster, the HUD and overlays such as MangoHud keep the window's sharpness (the game's own menu offers only 100 % and up). |
 | `MCLA_ADD_TO_STEAM` | `0` | `1` adds the game to Steam at the end (`scripts/add-to-steam.sh` does it later). |
 | `MCLA_ARTWORK` | `0` | `1` draws Steam artwork from two screenshots of the game (a few minutes). |
 
@@ -98,9 +99,14 @@ entry.
   does not set it yet (the game's own default, ORIGINAL, draws the scene with
   2 to 4 samples). Everything else stays as the game has it, with its saves
   and logs in the same folder.
-- **Lighter settings** in the game's OPTIONS (DISPLAY and PERFORMANCE):
-  RENDER SCALE below 100% draws the scene at fewer pixels, and shadows are
-  the next most costly thing on the Adreno.
+- **Render scale** (the launcher's row, `MCLA_RENDER_SCALE`): below 100 % the
+  scene is drawn at fewer pixels while the HUD, the menus and MangoHud stay at
+  the window's size. 1920x1080 at 67 % costs about what 1280x720 does, with
+  a sharp HUD. Shadows (OPTIONS > PERFORMANCE) are the next most costly thing
+  on the Adreno.
+- **Sound:** the game plays through a 1024-frame buffer (about 21 ms) instead
+  of rodio's 100 ms, so the engine and passing cars are not heard late;
+  `MCLA_AUDIO_BUFFER=2048` if it crackles, `0` for rodio's own.
 - **Resolution:** 1280x720 is the lightest. Alt+Enter cycles the game between
   a window, borderless and full screen.
 - **Speed on Adreno GPUs:** the city is drawn with one program per
@@ -124,7 +130,7 @@ entry.
 | Path | What it does |
 | --- | --- |
 | `upstream.json` | The Rusty MCLA commit the build is made from, and the Rust version. |
-| `patches/` | Changes to Rusty MCLA for ARM64 Linux: SDL (used only for game pads) builds without X11 or Wayland; the city's programs built once per material, which Adreno GPUs need, those drawn before built at start; frames prepared while the GPU draws (see Playing). |
+| `patches/` | Changes to Rusty MCLA for ARM64 Linux: SDL (used only for game pads) builds without X11 or Wayland; the city's programs built once per material, which Adreno GPUs need, those drawn before built at start; frames prepared while the GPU draws; a short sound buffer (see Playing). |
 | `scripts/build-game.sh [OUT]` | Builds `mcla` (the game), `mcla-tool` (its install tool) and `steam-art`, and packs them with the patched source for a release. |
 | `scripts/install.sh DISC\|- [DIR]` | Downloads the game build and ffmpeg ([BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds), checked against its SHA-256), builds the game data with `mcla-tool install`, writes the settings and `game/mcla.sh`, and with `MCLA_ARTWORK=1` draws the artwork. |
 | `scripts/configure.py` | Sets keys of the game's `settings.toml`, keeping the rest. |

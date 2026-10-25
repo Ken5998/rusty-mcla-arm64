@@ -263,6 +263,15 @@ impl LauncherApp {
             ui.radio_value(&mut self.settings.fps_cap, 30, "30").on_hover_text("Steadier and lighter on the battery");
             ui.radio_value(&mut self.settings.fps_cap, 0, "None").on_hover_text("The screen's refresh still limits it with vsync");
         });
+        ui.horizontal_wrapped(|ui| {
+            ui.label("Render scale:");
+            for &pct in tasks::RENDER_SCALES {
+                let name = if pct == 100 { "100% (default)".to_string() } else { format!("{pct}%") };
+                ui.radio_value(&mut self.settings.render_scale, pct, name);
+            }
+        })
+        .response
+        .on_hover_text("The scene's pixels in percent of the window: lower is faster, the HUD and overlays stay sharp. 1920x1080 at 67% costs about what 1280x720 does");
         ui.checkbox(&mut self.settings.fill, "Borderless full screen at the screen's resolution in Desktop Mode")
             .on_hover_text("Off: a window of the size above, which Steam's Game Mode scales to the screen");
         ui.checkbox(&mut self.settings.add_to_steam, "Add to Steam when the install is done");
@@ -270,7 +279,8 @@ impl LauncherApp {
         if self.paths.built()
             && (installed.resolution != self.settings.resolution
                 || installed.fill != self.settings.fill
-                || installed.fps_cap != self.settings.fps_cap)
+                || installed.fps_cap != self.settings.fps_cap
+                || installed.render_scale != self.settings.render_scale)
         {
             ui.label(RichText::new("Press Update to apply the changed settings.").color(GOOD));
         }

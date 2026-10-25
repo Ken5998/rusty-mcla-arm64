@@ -18,8 +18,9 @@
 #                               Game Mode scales it to the screen)
 #   MCLA_WINDOW_MODE=windowed|borderless|fullscreen   (default windowed)
 #   MCLA_FPS_CAP=N              0 = none (default 60)
+#   MCLA_RENDER_SCALE=S         the scene's size in the window, 0.5 - 1 (default 1)
 #   MCLA_ADD_TO_STEAM=1         add the game to Steam at the end
-#   MCLA_ARTWORK=0              skip the Steam artwork
+#   MCLA_ARTWORK=1              draw Steam artwork from screenshots
 #   MCLA_GAME_ARCHIVE=FILE      install this RustyMCLA-game-linux-*.tar.gz
 #                               instead of the newest release's (tests, CI)
 #   MCLA_FFMPEG=FILE            use this ffmpeg instead of downloading one
@@ -31,6 +32,7 @@ dir="${2:-$HOME/.local/share/RustyMCLA-arm64}"
 resolution="${MCLA_RESOLUTION:-1280x720}"
 window_mode="${MCLA_WINDOW_MODE:-windowed}"
 fps_cap="${MCLA_FPS_CAP:-60}"
+render_scale="${MCLA_RENDER_SCALE:-1}"
 mkdir -p "$dir"
 dir="$(cd "$dir" && pwd)"
 game="$dir/game"
@@ -170,8 +172,8 @@ aa=()
 grep -qE '^\s*aa\s*=' "$user_dir/settings.toml" 2>/dev/null || aa=(display.aa=off)
 python3 "$repo/scripts/configure.py" "$user_dir/settings.toml" \
     "display.window_mode=$window_mode" "display.resolution=$resolution" \
-    display.vsync=true "display.fps_cap=$fps_cap" "paths.data_dir=$dir/data/cache" "${aa[@]}"
-echo "Settings: $user_dir/settings.toml ($resolution $window_mode, fps cap $fps_cap)"
+    display.vsync=true "display.fps_cap=$fps_cap" "display.render_scale=$render_scale" "paths.data_dir=$dir/data/cache" "${aa[@]}"
+echo "Settings: $user_dir/settings.toml ($resolution $window_mode, fps cap $fps_cap, render scale $render_scale)"
 
 cat > "$game/mcla.sh.tmp" <<EOF
 #!/usr/bin/env bash

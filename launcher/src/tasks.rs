@@ -79,6 +79,11 @@ pub const RESOLUTIONS: &[(&str, &str)] = &[
     ("1920x1080", "The Retroid Pocket 6's screen: the sharpest, the most power"),
 ];
 
+/// The render scales offered, in percent of the window: below 100 the scene is drawn at fewer pixels and
+/// the HUD, the menus and overlays such as MangoHud stay at the window's (1920x1080 at 67 % costs about
+/// what 1280x720 does, with a sharp HUD).
+pub const RENDER_SCALES: &[u32] = &[100, 75, 67, 50];
+
 /// What the window remembers between runs.
 #[derive(Clone, PartialEq)]
 pub struct Settings {
@@ -89,6 +94,8 @@ pub struct Settings {
     pub fill: bool,
     /// The frame rate cap: 60, 30 or 0 (none).
     pub fps_cap: u32,
+    /// The scene's size in percent of the window (`RENDER_SCALES`).
+    pub render_scale: u32,
     pub add_to_steam: bool,
 }
 
@@ -99,6 +106,7 @@ impl Settings {
             resolution: RESOLUTIONS[0].0.to_string(),
             fill: false,
             fps_cap: 60,
+            render_scale: 100,
             add_to_steam: true,
         };
         for line in fs::read_to_string(paths.settings()).unwrap_or_default().lines() {
@@ -107,6 +115,7 @@ impl Settings {
                 Some(("resolution", v)) if RESOLUTIONS.iter().any(|(r, _)| *r == v) => s.resolution = v.to_string(),
                 Some(("fill", v)) => s.fill = v == "1",
                 Some(("fps_cap", v)) => s.fps_cap = v.parse().ok().filter(|n| [0, 30, 60].contains(n)).unwrap_or(60),
+                Some(("render_scale", v)) => s.render_scale = v.parse().ok().filter(|n| RENDER_SCALES.contains(n)).unwrap_or(100),
                 Some(("add_to_steam", v)) => s.add_to_steam = v != "0",
                 _ => {}
             }
@@ -118,11 +127,12 @@ impl Settings {
         let _ = fs::write(
             paths.settings(),
             format!(
-                "disc={}\nresolution={}\nfill={}\nfps_cap={}\nadd_to_steam={}\n",
+                "disc={}\nresolution={}\nfill={}\nfps_cap={}\nrender_scale={}\nadd_to_steam={}\n",
                 self.disc,
                 self.resolution,
                 if self.fill { 1 } else { 0 },
                 self.fps_cap,
+                self.render_scale,
                 if self.add_to_steam { 1 } else { 0 }
             ),
         );
@@ -408,6 +418,7 @@ pub fn install(r: &Runner, paths: &Paths, disc: Option<PathBuf>, settings: &Sett
             .env("MCLA_RESOLUTION", &settings.resolution)
             .env("MCLA_WINDOW_MODE", settings.window_mode())
             .env("MCLA_FPS_CAP", settings.fps_cap.to_string())
+            .env("MCLA_RENDER_SCALE", format!("{:.2}", settings.render_scale as f32 / 100.0))
             .env("MCLA_ADD_TO_STEAM", if settings.add_to_steam { "1" } else { "0" }),
     )?;
     Ok(if settings.add_to_steam {
