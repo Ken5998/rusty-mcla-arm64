@@ -101,7 +101,9 @@ entry.
   material instead of one for all of them, which Turnip's compiler turns
   into a program four to eight times shorter. They are built in the
   background the first few minutes of play (the game is slower until
-  then) and kept by Mesa's shader cache for the next start.
+  then) and kept by Mesa's shader cache for the next start; the ones you
+  have drawn are listed in `city-programs.txt` and built again as the game
+  starts, before they are needed.
   `MCLA_CITY_SPEC=0` draws as upstream does. The game also prepares the
   next frame while the GPU draws the last one instead of waiting for the
   desktop to show each frame first; `MCLA_PRESENT_NOTIFY=1` waits as
@@ -116,7 +118,7 @@ entry.
 | Path | What it does |
 | --- | --- |
 | `upstream.json` | The Rusty MCLA commit the build is made from, and the Rust version. |
-| `patches/` | Changes to Rusty MCLA for ARM64 Linux: SDL (used only for game pads) builds without X11 or Wayland; GPU time per render pass (`MCLA_GPU_TIMES=1`); the city's programs built once per material, which Adreno GPUs need, and frames prepared while the GPU draws (see Playing). |
+| `patches/` | Changes to Rusty MCLA for ARM64 Linux: SDL (used only for game pads) builds without X11 or Wayland; GPU time per render pass (`MCLA_GPU_TIMES=1`); the city's programs built once per material, which Adreno GPUs need, frames prepared while the GPU draws, and the city programs drawn before built at start (see Playing). |
 | `scripts/build-game.sh [OUT]` | Builds `mcla` (the game), `mcla-tool` (its install tool) and `steam-art`, and packs them with the patched source for a release. |
 | `scripts/install.sh DISC\|- [DIR]` | Downloads the game build and ffmpeg ([BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds), checked against its SHA-256), builds the game data with `mcla-tool install`, writes the settings and `game/mcla.sh`, and draws the artwork. |
 | `scripts/configure.py` | Sets keys of the game's `settings.toml`, keeping the rest. |

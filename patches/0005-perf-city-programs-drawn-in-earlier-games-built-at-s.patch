@@ -1,0 +1,216 @@
+From 8d7c700b0bf746ce9b084f6d79c0a397f1c3175d Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Kenan=20Kasumovi=C4=87?=
+ <46025606+Ken5998@users.noreply.github.com>
+Date: Sun, 25 Oct 2026 15:40:50 +0000
+Subject: [PATCH] perf: city programs drawn in earlier games built at start
+
+A draw with the shared city program costs about as much as the whole city
+on an Adreno, so the frames that fall back to it while a material's own
+program builds take hundreds of ms. Keep the (pipeline, material) pairs
+drawn once in city-programs.txt in the user folder and queue them at the
+next start; pairs a frame asks for go to the front of the queue. Frames
+more than 120 ms after the last one are logged with their phases and the
+number of draws that used the shared program.
+---
+ mcla-rs/crates/game/src/main.rs            |  17 ++++
+ mcla-rs/crates/game/src/render/cityspec.rs | 108 +++++++++++++++++----
+ 2 files changed, 107 insertions(+), 18 deletions(-)
+
+diff --git a/mcla-rs/crates/game/src/main.rs b/mcla-rs/crates/game/src/main.rs
+index 80ef911..0c6ba92 100644
+--- a/mcla-rs/crates/game/src/main.rs
++++ b/mcla-rs/crates/game/src/main.rs
+@@ -7546,6 +7546,23 @@ log::info!("stuck2: car {} {} grounded {} up.y {:.2} speed {:.2} rpm {:.0} veh {
+         if self.frame_no % 240 == 0 {
+             log::info!("phases: sim {:.2} ms, acquire+ui {:.2}, passes {:.2}, submit+present {:.2}", t_sim, t_ui - t_sim, t_enc - t_ui, t_end - t_enc);
+         }
++        // (a frame long after the last one: where its time went, and how many city draws used the
++        // shared program - render/cityspec.rs)
++        {
++            static LAST: std::sync::Mutex<Option<std::time::Instant>> = std::sync::Mutex::new(None);
++            let (shared_draws, building) = gpu.city_spec.take_fallbacks();
++            let at = std::time::Instant::now();
++            let gap = LAST.lock().unwrap().replace(at).map_or(0.0, |l| (at - l).as_secs_f32() * 1000.0);
++            if gap > 120.0 && self.frame_no > 60 {
++                log::info!(
++                    "slow frame: {gap:.0} ms since the last (sim {:.1}, acquire+ui {:.1}, passes {:.1}, submit+present {:.1}); city: {shared_draws} draws with the shared program, {building} programs building",
++                    t_sim,
++                    t_ui - t_sim,
++                    t_enc - t_ui,
++                    t_end - t_enc
++                );
++            }
++        }
+         // (MCLA_ENV_DUMP=<file>: with the screenshot, the cars' environment maps as numbers)
+         if shot_buf.is_some() {
+             if let Ok(p) = std::env::var("MCLA_ENV_DUMP") {
+diff --git a/mcla-rs/crates/game/src/render/cityspec.rs b/mcla-rs/crates/game/src/render/cityspec.rs
+index bb34c18..3cb5850 100644
+--- a/mcla-rs/crates/game/src/render/cityspec.rs
++++ b/mcla-rs/crates/game/src/render/cityspec.rs
+@@ -12,11 +12,18 @@
+ //! [`super::Gpu::set_city`] and bind materials with [`super::Gpu::bind_mat`], which swaps in the
+ //! material's own pipeline; anything else that binds a material (the shadow passes) calls
+ //! [`super::Gpu::city_off`] first. MCLA_CITY_SPEC=0: the shared pipelines only, as upstream.
++//!
++//! A draw with the shared pipeline costs as much as the whole city did, so the frame it falls in
++//! can take a quarter of a second. The pairs drawn once are kept in `city-programs.txt` in the
++//! user folder and queued at the next start, before anything asks for them (Mesa's shader cache
++//! makes those quick); a pair the frame asks for goes to the front of the queue.
+ 
+ use super::{post, Vertex};
+ use hashbrown::{HashMap, HashSet};
+-use std::sync::atomic::{AtomicU8, Ordering};
+-use std::sync::{mpsc, Arc, Mutex};
++use std::collections::VecDeque;
++use std::io::Write;
++use std::sync::atomic::{AtomicU32, AtomicU8, Ordering};
++use std::sync::{Arc, Condvar, Mutex};
+ 
+ #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+ pub enum CityKind {
+@@ -52,13 +59,42 @@ struct Shared {
+     src: String,
+     glass_flip: bool,
+     ready: Mutex<HashMap<(CityKind, u32), wgpu::RenderPipeline>>,
++    queue: Mutex<VecDeque<(CityKind, u32)>>,
++    wake: Condvar,
++    building: AtomicU32,
+ }
+ 
+ pub struct CitySpec {
+     shared: Option<Arc<Shared>>,
+     asked: Mutex<HashSet<(CityKind, u32)>>,
+-    tx: Mutex<Option<mpsc::Sender<(CityKind, u32)>>>,
+     cur: AtomicU8,
++    fallbacks: AtomicU32,
++}
++
++fn list_path() -> std::path::PathBuf {
++    mcla_config::paths::user_data_dir().join("city-programs.txt")
++}
++
++/// The pairs drawn in earlier games: lines of "<kind number> <material>".
++fn drawn_before() -> Vec<(CityKind, u32)> {
++    let text = std::fs::read_to_string(list_path()).unwrap_or_default();
++    text.lines()
++        .filter_map(|l| {
++            let mut it = l.split_whitespace();
++            let k = KINDS.get(it.next()?.parse::<usize>().ok()?)?;
++            let m = it.next()?.parse::<u32>().ok().filter(|m| *m < super::MatMode::COUNT)?;
++            Some((*k, m))
++        })
++        .collect()
++}
++
++fn remember(kind: CityKind, mode: u32) {
++    let k = KINDS.iter().position(|x| *x == kind).unwrap();
++    let path = list_path();
++    let _ = std::fs::create_dir_all(path.parent().unwrap_or(&path));
++    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(&path) {
++        let _ = writeln!(f, "{k} {mode}");
++    }
+ }
+ 
+ /// The program text without the diagnostics views when MCLA_DEBUG_VIEW is not set: `g.params.w`
+@@ -79,26 +115,50 @@ impl CitySpec {
+         let on = std::env::var("MCLA_CITY_SPEC").map_or(true, |v| v.trim() != "0");
+         log::info!("city programs by material: {}", if on { "on" } else { "off (MCLA_CITY_SPEC=0)" });
+         let shared = on.then(|| {
+-            Arc::new(Shared { device: device.clone(), layout: layout.clone(), src: src.to_string(), glass_flip, ready: Mutex::new(HashMap::new()) })
++            Arc::new(Shared {
++                device: device.clone(),
++                layout: layout.clone(),
++                src: src.to_string(),
++                glass_flip,
++                ready: Mutex::new(HashMap::new()),
++                queue: Mutex::new(VecDeque::new()),
++                wake: Condvar::new(),
++                building: AtomicU32::new(0),
++            })
+         });
+-        let tx = shared.as_ref().map(|shared| {
+-            let (tx, rx) = mpsc::channel::<(CityKind, u32)>();
+-            let rx = Arc::new(Mutex::new(rx));
++        let mut asked = HashSet::new();
++        if let Some(shared) = shared.as_ref() {
++            let before = drawn_before();
++            let mut q = shared.queue.lock().unwrap();
++            for pair in before {
++                if asked.insert(pair) {
++                    q.push_back(pair);
++                }
++            }
++            log::info!("city programs: {} drawn in earlier games, built in the background", q.len());
++            drop(q);
+             for n in 0..3 {
+                 let shared = shared.clone();
+-                let rx = rx.clone();
+                 let _ = std::thread::Builder::new().name(format!("city programs {n}")).spawn(move || loop {
+-                    let job = rx.lock().unwrap().recv();
+-                    let Ok((kind, mode)) = job else { break };
++                    let (kind, mode) = {
++                        let mut q = shared.queue.lock().unwrap();
++                        loop {
++                            if let Some(job) = q.pop_front() {
++                                shared.building.fetch_add(1, Ordering::Relaxed);
++                                break job;
++                            }
++                            q = shared.wake.wait(q).unwrap();
++                        }
++                    };
+                     let t = std::time::Instant::now();
+                     let p = build(&shared, kind, mode);
+                     log::debug!("city program {kind:?} / material {mode}: {:.0} ms", t.elapsed().as_secs_f32() * 1000.0);
+                     shared.ready.lock().unwrap().insert((kind, mode), p);
++                    shared.building.fetch_sub(1, Ordering::Relaxed);
+                 });
+             }
+-            tx
+-        });
+-        CitySpec { shared, asked: Mutex::new(HashSet::new()), tx: Mutex::new(tx), cur: AtomicU8::new(NONE) }
++        }
++        CitySpec { shared, asked: Mutex::new(asked), cur: AtomicU8::new(NONE), fallbacks: AtomicU32::new(0) }
+     }
+ 
+     pub fn set_cur(&self, kind: Option<CityKind>) {
+@@ -110,19 +170,31 @@ impl CitySpec {
+         KINDS.get(self.cur.load(Ordering::Relaxed) as usize).copied()
+     }
+ 
+-    /// The material's own pipeline when it is built; else it is queued and `None`.
++    /// The material's own pipeline when it is built; else it goes to the front of the queue and `None`.
+     pub fn get(&self, kind: CityKind, mode: u32) -> Option<wgpu::RenderPipeline> {
+         let shared = self.shared.as_ref()?;
+         if let Some(p) = shared.ready.lock().unwrap().get(&(kind, mode)) {
+             return Some(p.clone());
+         }
+-        if self.asked.lock().unwrap().insert((kind, mode)) {
+-            if let Some(tx) = self.tx.lock().unwrap().as_ref() {
+-                let _ = tx.send((kind, mode));
+-            }
++        self.fallbacks.fetch_add(1, Ordering::Relaxed);
++        let new = self.asked.lock().unwrap().insert((kind, mode));
++        let mut q = shared.queue.lock().unwrap();
++        if new {
++            remember(kind, mode);
++            q.push_front((kind, mode));
++            shared.wake.notify_one();
++        } else if let Some(i) = q.iter().position(|x| *x == (kind, mode)).filter(|i| *i > 0) {
++            q.remove(i);
++            q.push_front((kind, mode));
+         }
+         None
+     }
++
++    /// Draws made with the shared pipeline since the last call, and the pairs not built yet.
++    pub fn take_fallbacks(&self) -> (u32, usize) {
++        let pending = self.shared.as_ref().map_or(0, |s| s.queue.lock().unwrap().len() + s.building.load(Ordering::Relaxed) as usize);
++        (self.fallbacks.swap(0, Ordering::Relaxed), pending)
++    }
+ }
+ 
+ fn build(s: &Shared, kind: CityKind, mode: u32) -> wgpu::RenderPipeline {
+-- 
+2.43.0
+
