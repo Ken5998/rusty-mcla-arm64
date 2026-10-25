@@ -1,0 +1,38 @@
+From 423c5b59f851186650b543e783437c74f275ab91 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Kenan=20Kasumovi=C4=87?=
+ <46025606+Ken5998@users.noreply.github.com>
+Date: Sun, 25 Oct 2026 15:05:17 +0000
+Subject: [PATCH] perf: let the CPU prepare the next frame while the GPU draws
+
+On Wayland, pre_present_notify makes winit hold the next RedrawRequested
+until the compositor's frame callback, which arrives only once the GPU has
+finished the frame and it was shown. CPU and GPU then never overlap: on a
+GPU-bound handheld a frame costs CPU time + GPU time. Leave it out (the
+swapchain paces the frames); MCLA_PRESENT_NOTIFY=1 restores it.
+---
+ mcla-rs/crates/game/src/main.rs | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/mcla-rs/crates/game/src/main.rs b/mcla-rs/crates/game/src/main.rs
+index d3e150f..80ef911 100644
+--- a/mcla-rs/crates/game/src/main.rs
++++ b/mcla-rs/crates/game/src/main.rs
+@@ -7533,7 +7533,14 @@ log::info!("stuck2: car {} {} grounded {} up.y {:.2} speed {:.2} rpm {:.0} veh {
+         gpuprof::resolve(&mut enc);
+         gpu.queue.submit([enc.finish()]);
+         gpuprof::collect(&gpu.device);
+-        window.pre_present_notify();
++        // (On Wayland this makes winit hold the next RedrawRequested until the compositor's frame
++        // callback, which comes only once the GPU has finished this frame and the compositor has
++        // shown it: the CPU then never prepares a frame while the GPU draws the last one. On a
++        // GPU-bound handheld that is CPU time + GPU time a frame instead of the larger of the
++        // two, so it is left out; the swapchain paces the frames. MCLA_PRESENT_NOTIFY=1: as upstream.)
++        if std::env::var("MCLA_PRESENT_NOTIFY").map_or(false, |v| v.trim() == "1") {
++            window.pre_present_notify();
++        }
+         frame.present();
+         let t_end = now.elapsed().as_secs_f32() * 1000.0;
+         if self.frame_no % 240 == 0 {
+-- 
+2.43.0
+
