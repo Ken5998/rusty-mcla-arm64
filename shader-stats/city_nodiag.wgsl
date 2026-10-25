@@ -1,4 +1,4 @@
-var<private> dbg_view: f32 = 0.0;
+var<private> debug_view_off: f32 = 0.0;
 // Uber shader for static city geometry and vehicle/prop objects.
 
 struct Globals {
@@ -270,7 +270,7 @@ fn sun_shadow_casc(wpos: vec3<f32>, n: vec3<f32>) -> f32 {
     let k = g.shadow_params.x;
     let fade = clamp((distance(wpos, g.cam_pos.xyz) - casc.params.y) / casc.params.z, 0.0, 1.0);
     var pcf = 0.0;
-    if (fade < 1.0 && (dot(n, g.sun_dir.xyz) > 0.0 || (dbg_view > 68.5 && dbg_view < 69.5))) {
+    if (fade < 1.0 && (dot(n, g.sun_dir.xyz) > 0.0 || (debug_view_off > 68.5 && debug_view_off < 69.5))) {
         let t = vec4<f32>(dot(wpos, casc.top.xyz)) + casc.top_off;
         let r = vec4<f32>(dot(wpos, casc.right.xyz)) + casc.right_off;
         let held = vec4<f32>(casc.top_half > abs(t)) * vec4<f32>(casc.right_half > abs(r));
@@ -302,7 +302,7 @@ fn sun_shadow_casc(wpos: vec3<f32>, n: vec3<f32>) -> f32 {
             step(zref, casc_depth(q.xy + vec2<f32>(-rad.w * sn, -rad.w * cs))));
         pcf = dot(lit, vec4<f32>(0.25));
         // (diagnostics 68: the tile's number - 0, 1/4 .. 3/4, 1 where none holds the point)
-        if (dbg_view > 67.5 && dbg_view < 68.5) { return f32(tile) * 0.25; }
+        if (debug_view_off > 67.5 && debug_view_off < 68.5) { return f32(tile) * 0.25; }
     }
     return (1.0 - k) + k * (fade + (1.0 - fade) * pcf);
 }
@@ -315,7 +315,7 @@ fn sun_shadow(wpos: vec3<f32>, n: vec3<f32>) -> f32 {
     if (g.shadow_params.x <= 0.0) {
         return 1.0;
     }
-    if (casc.params.x > 0.5 && !(dbg_view > 66.5 && dbg_view < 67.5)) {
+    if (casc.params.x > 0.5 && !(debug_view_off > 66.5 && debug_view_off < 67.5)) {
         return sun_shadow_casc(wpos, n);
     }
     let p = g.light_vp * vec4<f32>(wpos + n * 0.005, 1.0);
@@ -372,7 +372,7 @@ fn sun_tap(wpos: vec3<f32>) -> f32 {
 // red for the ground and green for 8 m above it. `p.y` is not looked at; `high` picks the layer. Lit outside the map.
 // (Diagnostics 51, or no map: the stand-in before it - four taps of the shadow map at p.)
 fn fast_collector_at(p: vec3<f32>, high: bool) -> f32 {
-    if ((dbg_view > 50.5 && dbg_view < 51.5) || g.collector.z < 0.5) {
+    if ((debug_view_off > 50.5 && debug_view_off < 51.5) || g.collector.z < 0.5) {
         return 0.25 * (sun_tap(p + vec3<f32>(-1.5, 0.0, -1.5)) + sun_tap(p + vec3<f32>(-1.5, 0.0, 0.5)) + sun_tap(p + vec3<f32>(0.5, 0.0, -1.5)) + sun_tap(p + vec3<f32>(0.5, 0.0, 0.5)));
     }
     let uv = (p.xz - g.collector.xy) * (1.0 / 256.0) + vec2<f32>(0.5);
@@ -421,7 +421,7 @@ fn car_kc() -> vec3<f32> {
 // stands in its own and the kerb's shade when the sun is low (2026-10-14; the 8 m layer was
 // read here before - diagnostics 96 brings that back).
 fn car_collector(p: vec3<f32>) -> f32 {
-    if (dbg_view > 95.5 && dbg_view < 96.5) { return fast_collector_at(p + vec3<f32>(0.0, 7.5, 0.0), true); }
+    if (debug_view_off > 95.5 && debug_view_off < 96.5) { return fast_collector_at(p + vec3<f32>(0.0, 7.5, 0.0), true); }
     return fast_collector_at(p, false);
 }
 
@@ -443,7 +443,7 @@ fn soft_collector_high(p: vec3<f32>) -> f32 {
 
 fn soft_collector_at(p: vec3<f32>, high: bool) -> f32 {
     let near = fast_collector_at(p, high);
-    if (!(dbg_view > 49.5 && dbg_view < 50.5)) { return near; }
+    if (!(debug_view_off > 49.5 && debug_view_off < 50.5)) { return near; }
     var ring = 0.0;
     for (var i = 0; i < 8; i = i + 1) {
         let a = f32(i) * 0.7853982;
@@ -590,7 +590,7 @@ fn xenos_gamma(c: vec3<f32>) -> vec3<f32> {
     return l / 1023.0;
 }
 fn xenos_gamma_on() -> bool {
-    return !(dbg_view > 39.5 && dbg_view < 40.5);
+    return !(debug_view_off > 39.5 && debug_view_off < 40.5);
 }
 // (a gamma texture's sample, decoded the console's way unless the diagnostics view asks otherwise)
 fn xgm(c: vec3<f32>) -> vec3<f32> {
@@ -599,13 +599,13 @@ fn xgm(c: vec3<f32>) -> vec3<f32> {
 }
 // (the windows' fixed reflection pictures; MCLA_DEBUG_VIEW=102: sRGB as before, for A/B)
 fn xgp(c: vec3<f32>) -> vec3<f32> {
-    if (dbg_view > 101.5 && dbg_view < 102.5) { return c; }
+    if (debug_view_off > 101.5 && debug_view_off < 102.5) { return c; }
     return xgm(c);
 }
 // (trial, MCLA_DEBUG_VIEW=91: the same decoding for every other material's diffuse - cars, props,
 // plants, people)
 fn xenos_gamma_all() -> bool {
-    return dbg_view > 90.5 && dbg_view < 91.5;
+    return debug_view_off > 90.5 && debug_view_off < 91.5;
 }
 // A texture uploaded as it is (no decoding by the GPU), decoded here: the sRGB curve, and the
 // console's four straight pieces on the stored value (see xenos_gamma). For the far city's night
@@ -700,7 +700,7 @@ fn road_program(wpos: vec3<f32>, nrm: vec3<f32>, color: vec4<f32>, occlusion: f3
     xs_c[72] = vec4<f32>(10.0, 0.0, 0.0, 0.0);
     xs_c[73] = vec4<f32>(8.0, 0.0, 0.0, 0.0);
     // (38: FresnelExponent 0 - the far intensity everywhere)
-    if (dbg_view > 37.5 && dbg_view < 38.5) { xs_c[72] = vec4<f32>(0.0); }
+    if (debug_view_off > 37.5 && debug_view_off < 38.5) { xs_c[72] = vec4<f32>(0.0); }
     var vin: array<vec4<f32>, 16>;
     vin[0] = vec4<f32>(wpos, 1.0);
     vin[1] = vec4<f32>(nrm, 0.0);
@@ -719,14 +719,14 @@ fn road_program(wpos: vec3<f32>, nrm: vec3<f32>, color: vec4<f32>, occlusion: f3
     xs_c[104] = vec4<f32>(0.7, 0.0, 0.0, 0.0);
     xs_c[105] = vec4<f32>(0.04, 0.15, 0.1, 0.0);
     // (diagnostics 35: without the specular - the three intensities zeroed, as an override on the running game does it)
-    if (dbg_view > 34.5 && dbg_view < 35.5) {
+    if (debug_view_off > 34.5 && debug_view_off < 35.5) {
         xs_c[101] = vec4<f32>(0.0);
         xs_c[102] = vec4<f32>(0.0);
         xs_c[103] = vec4<f32>(0.0);
     }
     // (36: the far intensity set to the near one; 37: near and decal intensity zero)
-    if (dbg_view > 35.5 && dbg_view < 36.5) { xs_c[102] = vec4<f32>(0.4, 0.0, 0.0, 0.0); }
-    if (dbg_view > 36.5 && dbg_view < 37.5) { xs_c[101] = vec4<f32>(0.0); xs_c[103] = vec4<f32>(0.0); }
+    if (debug_view_off > 35.5 && debug_view_off < 36.5) { xs_c[102] = vec4<f32>(0.4, 0.0, 0.0, 0.0); }
+    if (debug_view_off > 36.5 && debug_view_off < 37.5) { xs_c[101] = vec4<f32>(0.0); xs_c[103] = vec4<f32>(0.0); }
     xs_road_sun = sun;
     xs_road_refl = env_color(reflect(normalize(wpos - g.cam_pos.xyz), nrm));
     return max(xs_road_ps(vs.o).rgb, vec3<f32>(0.0));
@@ -989,7 +989,7 @@ fn water_program(in: VsOut) -> vec3<f32> {
     xs_c[26] = vec4<f32>(g.ambient_sky.rgb, 1.0);
     xs_c[27] = vec4<f32>(0.0625, 0.0, 1.875, 0.0);
     xs_c[63] = vec4<f32>(g.sun_color.w, g.cloud_shade.a / 0.0022, 0.2, 3.0);
-    xs_water_pic = g.collector.w > 0.5 && !(dbg_view > 750.5 && dbg_view < 751.5);
+    xs_water_pic = g.collector.w > 0.5 && !(debug_view_off > 750.5 && debug_view_off < 751.5);
     xs_water_refl = env_color(reflect(normalize(in.wpos - g.cam_pos.xyz), vec3<f32>(0.0, 1.0, 0.0)));
     return max(xs_water_ps(o).rgb, vec3<f32>(0.0));
 }
@@ -1033,7 +1033,7 @@ fn vs_body(in: VsIn) -> VsOut {
     // reads the mark by its length. 2026-10-15, MCLA_DEBUG_VIEW=400: as before)
     o.normal = normalize((obj.model * vec4<f32>(in.normal, 0.0)).xyz);
     // (world.rs marks it: the vertical at a quarter of the length - x 1.5 or x 2 by world::mark_binormal)
-    if (dot(in.normal, in.normal) < 0.3 && !(dbg_view > 399.5 && dbg_view < 400.5)) { o.normal = vec3<f32>(0.0); }
+    if (dot(in.normal, in.normal) < 0.3 && !(debug_view_off > 399.5 && debug_view_off < 400.5)) { o.normal = vec3<f32>(0.0); }
     o.bflip = clamp(round(2.0 * (length(in.normal) - 1.0)) * 0.5, 0.0, 1.0);
     o.uv0 = in.uv0;
     o.uv1 = in.uv1;
@@ -1110,14 +1110,14 @@ fn vs_env_dp(in: VsIn) -> VsOut {
     // x x 0.5 -+ 0.5). No push, no test per pixel. MCLA_DEBUG_VIEW=370: the port's two
     // inventions as until then (corners behind pushed out, depth by distance, the 60 degree drop
     // in fs_main).
-    if (dbg_view > 369.5 && dbg_view < 370.5) {
+    if (debug_view_off > 369.5 && debug_view_off < 370.5) {
         xy = xy * (1.0 + 8.0 * max(-fwd, 0.0));
         o.clip = vec4<f32>(xy, clamp(1.0 - dist * 0.0005, 0.0001, 1.0), 1.0);
         return o;
     }
     let xy0 = select(vec2<f32>(-m.x, m.y), m.xy, g.moon_dir.w < 1.5) / max(1.0 + fwd, 0.000001);
     // (MCLA_DEBUG_VIEW=371: cut at the half's plane, as the clip control word reads)
-    if (dbg_view > 370.5 && dbg_view < 371.5) {
+    if (debug_view_off > 370.5 && debug_view_off < 371.5) {
         o.clip = vec4<f32>(xy0, 1.0 - fwd * dist * 0.0005, 1.0);
         return o;
     }
@@ -1309,14 +1309,14 @@ fn mini_sky_old(r: vec2<f32>) -> vec3<f32> {
 fn mini_sky(r: vec2<f32>) -> vec3<f32> {
     let uv = clamp(vec2<f32>(0.5) + 0.47 * r, vec2<f32>(0.0), vec2<f32>(1.0));
     let t = textureSampleLevel(t_minisky, s_env, uv, 0.0);
-    if (t.a < 0.5 || (dbg_view > 659.5 && dbg_view < 660.5)) { return mini_sky_old(r); }
-    if (dbg_view > 660.5 && dbg_view < 662.5) {
+    if (t.a < 0.5 || (debug_view_off > 659.5 && debug_view_off < 660.5)) { return mini_sky_old(r); }
+    if (debug_view_off > 660.5 && debug_view_off < 662.5) {
         let p = uv * 128.0 - vec2<f32>(0.5);
         let i0 = vec2<i32>(floor(p));
         let f = p - floor(p);
         let lo = vec2<i32>(0);
         let hi = vec2<i32>(127);
-        if (dbg_view > 661.5) { return pwl_decode(textureLoad(t_minisky, clamp(vec2<i32>(floor(uv * 128.0)), lo, hi), 0).rgb); }
+        if (debug_view_off > 661.5) { return pwl_decode(textureLoad(t_minisky, clamp(vec2<i32>(floor(uv * 128.0)), lo, hi), 0).rgb); }
         let a = pwl_decode(textureLoad(t_minisky, clamp(i0, lo, hi), 0).rgb);
         let b = pwl_decode(textureLoad(t_minisky, clamp(i0 + vec2<i32>(1, 0), lo, hi), 0).rgb);
         let c = pwl_decode(textureLoad(t_minisky, clamp(i0 + vec2<i32>(0, 1), lo, hi), 0).rgb);
@@ -1355,7 +1355,7 @@ fn env_color(d: vec3<f32>) -> vec3<f32> {
         let real = textureSampleLevel(t_env, s_env, vec3<f32>(d.x, d.y, d.z), 0.0).rgb;
         // (under the weather's keys the map is taken as it is, as the game's programs take
         // theirs: the sun in it is the dome's own. MCLA_DEBUG_VIEW 39: the older gains.)
-        if (g.dome.w > 0.5 && !(dbg_view > 38.5 && dbg_view < 39.5)) { return real; }
+        if (g.dome.w > 0.5 && !(debug_view_off > 38.5 && debug_view_off < 39.5)) { return real; }
         return real * 1.15 + g.sun_color.rgb * sun * 2.5;
     }
     return c + g.sun_color.rgb * sun * 2.5;
@@ -1438,8 +1438,8 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     car_wp = in.wpos;
     var albedo = textureSample(t_diffuse, s_diffuse, in.uv0);
     // (diagnostics 542 .. 545, p2day: the upper windows' diffuse read at level 0 .. 3; 546: at one level coarser than the sampler's choice)
-    if (mat.mode == 3u && dbg_view > 541.5 && dbg_view < 545.5) { albedo = textureSampleLevel(t_diffuse, s_diffuse, in.uv0, round(dbg_view) - 542.0); }
-    if (mat.mode == 3u && dbg_view > 545.5 && dbg_view < 546.5) { albedo = textureSampleBias(t_diffuse, s_diffuse, in.uv0, 1.0); }
+    if (mat.mode == 3u && debug_view_off > 541.5 && debug_view_off < 545.5) { albedo = textureSampleLevel(t_diffuse, s_diffuse, in.uv0, round(debug_view_off) - 542.0); }
+    if (mat.mode == 3u && debug_view_off > 545.5 && debug_view_off < 546.5) { albedo = textureSampleBias(t_diffuse, s_diffuse, in.uv0, 1.0); }
     // (neon2, 2026-10-15) Signs: a lit sign's light is far from linear in its textures - D x m x (0.6 + 2.8 m)
     // of two pictures decoded AFTER the filter (see `sign_raw`), white clipping in the tone map - so how wide the
     // filter reaches changes the sign's mean, not only its sharpness. The original reads them at 1280 x 720 with
@@ -1450,7 +1450,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     // second place's frame reads 0.8 with it and 1.0 without. MCLA_DEBUG_VIEW=442: the window's own footprint.
     let sg_c = g.view_proj * vec4<f32>(in.wpos, 1.0);
     let sg_s = clamp(1.0 / max(360.0 * abs(dpdy(sg_c.y / sg_c.w)), 0.0001), 0.5, 4.0);
-    let sg_on = (mat.mode == 5u || mat.mode == 24u) && in.neon_hl > -0.5 && g.tone.w < 1.5 && !(dbg_view > 441.5 && dbg_view < 442.5);
+    let sg_on = (mat.mode == 5u || mat.mode == 24u) && in.neon_hl > -0.5 && g.tone.w < 1.5 && !(debug_view_off > 441.5 && debug_view_off < 442.5);
     let sg_dx0 = dpdx(in.uv0) * sg_s;
     let sg_dy0 = dpdy(in.uv0) * sg_s;
     // (the plain footprint, for fetches made in branches: the in-car glass' noise and mask)
@@ -1472,7 +1472,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     // world position) lies in front of the half and within 60 degrees of the picture point's own
     // direction. MCLA_DEBUG_VIEW=113: without, as until 2026-10-14.
     // (2026-10-15: only with MCLA_DEBUG_VIEW=370 - the original clips at the half's plane instead, vs_env_dp)
-    if (g.moon_dir.w > 0.5 && dbg_view > 369.5 && dbg_view < 370.5) {
+    if (g.moon_dir.w > 0.5 && debug_view_off > 369.5 && debug_view_off < 370.5) {
         let q = vec2<f32>(in.clip.x / 128.0 - 1.0, 1.0 - in.clip.y / 128.0);
         let r2 = dot(q, q);
         let f = (1.0 - r2) / (1.0 + r2);
@@ -1484,12 +1484,12 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
         if (dp_ghost) { discard; }
     }
     // (the cars' map: a triangle wholly behind the half's plane is not drawn - vs_env_dp)
-    if (g.moon_dir.w > 0.5 && !(dbg_view > 369.5 && dbg_view < 371.5) && in.fill.a <= 0.0) { discard; }
+    if (g.moon_dir.w > 0.5 && !(debug_view_off > 369.5 && debug_view_off < 371.5) && in.fill.a <= 0.0) { discard; }
     // (... and of a FAR model - world::LOD_MARK in uv2.y - only what lies in front of the plane:
     // the original's far ground does not lie over its road where both run on behind the plane
     // (there the last one drawn wins, and the roads come after their sector's far model); the
     // port's depth would put the far model's sheet across the road. MCLA_DEBUG_VIEW=372: whole.)
-    if (g.moon_dir.w > 0.5 && !(dbg_view > 369.5 && dbg_view < 372.5) && in.uv2.y > 2000000.0 && in.clip.z > 0.5) { discard; }
+    if (g.moon_dir.w > 0.5 && !(debug_view_off > 369.5 && debug_view_off < 372.5) && in.uv2.y > 2000000.0 && in.clip.z > 0.5) { discard; }
     // The city's programs all draw with back faces culled (register 0x2205 = 2 on every PSCity*
     // draw of the captures, the cut-out ones too); the port's meshes are not wound consistently,
     // so it draws both sides - and of a two-sided pair laid in one plane (the shop awnings: a
@@ -1497,7 +1497,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     // stored normal agrees with the game's winding (formats example tangent_stats, mode near):
     // a face whose stored normal points away from the side it is seen from is a back face.
     // (MCLA_DEBUG_VIEW=98: both sides as before)
-    if ((mat.mode < 6u || mat.mode == 14u || mat.mode >= 20u) && in.neon_hl > -0.5 && !(dbg_view > 97.5 && dbg_view < 98.5)) {
+    if ((mat.mode < 6u || mat.mode == 14u || mat.mode >= 20u) && in.neon_hl > -0.5 && !(debug_view_off > 97.5 && debug_view_off < 98.5)) {
         var face_n = cross(dpdx(in.wpos), dpdy(in.wpos));
         let fl = length(face_n);
         let sl = length(in.normal);
@@ -1512,7 +1512,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
             // looks along the axis with x to the right, so cross(dpdx, dpdy) of the world position points AWAY
             // from the viewer for a triangle the warp leaves as it is, and towards him for one it turns over:
             // the sign alone is the warped winding. MCLA_DEBUG_VIEW=620: the true side, as until then.)
-            if (g.moon_dir.w > 0.5 && !(dbg_view > 619.5 && dbg_view < 620.5)) {
+            if (g.moon_dir.w > 0.5 && !(debug_view_off > 619.5 && debug_view_off < 620.5)) {
                 face_n = -face_n;
             } else if (dot(face_n, g.cam_pos.xyz - in.wpos) < 0.0) { face_n = -face_n; }
             if (dot(in.normal, face_n) < -0.3 * sl * fl) { discard; }
@@ -1525,7 +1525,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     // a plate 6 cm thick seen from the front at a flat angle) the BACK face stood out 3 px beside the
     // front one and, facing the afternoon sun, shone orange where the original shows the wall behind.
     // The same test as the city's: the stored normal against the face seen. Diagnostics 336: both sides.
-    if (mat.mode == 9u && in.lpos.z < -9000.0 && in.uv2.x < 0.5 && in.uv2.y < 0.5 && !(in.uv1.y > 100.5 && in.uv1.y < 104.5) && !(dbg_view > 335.5 && dbg_view < 336.5)) {
+    if (mat.mode == 9u && in.lpos.z < -9000.0 && in.uv2.x < 0.5 && in.uv2.y < 0.5 && !(in.uv1.y > 100.5 && in.uv1.y < 104.5) && !(debug_view_off > 335.5 && debug_view_off < 336.5)) {
         var pface_n = cross(dpdx(in.wpos), dpdy(in.wpos));
         let pfl = length(pface_n);
         let psl = length(in.normal);
@@ -1535,13 +1535,13 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
         }
     }
     // (diagnostics 320 - 322, shopw: the shop panes not drawn)
-    if (dbg_view > 319.5 && dbg_view < 322.5 && mat.mode == 22u) { discard; }
+    if (debug_view_off > 319.5 && debug_view_off < 322.5 && mat.mode == 22u) { discard; }
     // (332 / 333 / 334: panes with a stored normal pointing to -x not drawn / panes west of x 792 / panes east of it)
-    if (dbg_view > 331.5 && dbg_view < 332.5 && mat.mode == 22u && in.normal.x < -0.3) { discard; }
-    if (dbg_view > 332.5 && dbg_view < 333.5 && mat.mode == 22u && in.wpos.x < 792.0) { discard; }
-    if (dbg_view > 333.5 && dbg_view < 334.5 && mat.mode == 22u && in.wpos.x >= 792.0) { discard; }
+    if (debug_view_off > 331.5 && debug_view_off < 332.5 && mat.mode == 22u && in.normal.x < -0.3) { discard; }
+    if (debug_view_off > 332.5 && debug_view_off < 333.5 && mat.mode == 22u && in.wpos.x < 792.0) { discard; }
+    if (debug_view_off > 333.5 && debug_view_off < 334.5 && mat.mode == 22u && in.wpos.x >= 792.0) { discard; }
     // (329: each pane layer halves what is behind it - a layer count)
-    if (dbg_view > 328.5 && dbg_view < 329.5 && mat.mode == 22u) { return vec4<f32>(0.0, 0.0, 0.0, 0.5); }
+    if (debug_view_off > 328.5 && debug_view_off < 329.5 && mat.mode == 22u) { return vec4<f32>(0.0, 0.0, 0.0, 0.5); }
     // (the city's own materials: their diffuse, grime, decal and window maps are "gamma" textures)
     let xg = xenos_gamma_on() && (mat.mode < 6u || mat.mode == 14u || mat.mode >= 20u);
     // (props, plants and street furniture - PSPropDefault, PSPropBumpSpec, PSPropFoliage, the
@@ -1550,8 +1550,8 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     // (2026-10-14: NOT a plant's impostor card - uv1.y 104: its picture is a linear 8888 surface
     // read without the flag, fetch word 0x81024802; the leaf texture is decoded when the picture
     // is drawn, props/impostor.wgsl. MCLA_DEBUG_VIEW=112: decoded here as before)
-    let card_pic = mat.mode == 15u && in.uv1.y > 103.5 && in.uv1.y < 104.5 && !(dbg_view > 111.5 && dbg_view < 112.5);
-    let xg_prop = xenos_gamma_on() && in.neon_hl < -0.5 && !xg && !card_pic && !(dbg_view > 91.5 && dbg_view < 92.5);
+    let card_pic = mat.mode == 15u && in.uv1.y > 103.5 && in.uv1.y < 104.5 && !(debug_view_off > 111.5 && debug_view_off < 112.5);
+    let xg_prop = xenos_gamma_on() && in.neon_hl < -0.5 && !xg && !card_pic && !(debug_view_off > 91.5 && debug_view_off < 92.5);
     // (people - the skinned programs' diffuse, sampler 1, carries the flag as well; uv1.y = 77 is
     // the mark of a figure)
     let xg_fig = xenos_gamma_on() && mat.mode == 9u && in.uv1.y > 76.5 && in.uv1.y < 77.5;
@@ -1563,13 +1563,13 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     // the raw copies carry bit 14 of uv2.y (world.rs `upload`); props' signs (neon_hl < -0.5) and a sign whose
     // texture was not found for a raw copy keep their sRGB textures. MCLA_DEBUG_VIEW=441: as before (world.rs
     // then makes no raw copies and sets no mark).
-    let sign_raw = (mat.mode == 5u || mat.mode == 24u) && in.neon_hl > -0.5 && (u32(round(in.uv2.y)) & 16384u) != 0u && !(dbg_view > 440.5 && dbg_view < 441.5);
+    let sign_raw = (mat.mode == 5u || mat.mode == 24u) && in.neon_hl > -0.5 && (u32(round(in.uv2.y)) & 16384u) != 0u && !(debug_view_off > 440.5 && debug_view_off < 441.5);
     if (sign_raw) {
         albedo = vec4<f32>(select(srgb_decode(albedo.rgb), pwl_decode(albedo.rgb), vec3<bool>(xenos_gamma_on())), albedo.a);
     } else if (xg || xg_prop || xg_fig || xenos_gamma_all()) { albedo = vec4<f32>(xenos_gamma(albedo.rgb), albedo.a); }
     // (the far city's day picture - batches marked by world::mark_lod: decoded the console's
     // piecewise way at every hour, see "The far city" below; diagnostics 84: sRGB as it stood)
-    let lod_pwl = !xg && (mat.mode == 0u || mat.mode == 1u) && (u32(round(in.uv2.y)) & 2097152u) != 0u && g.dome.w > 0.5 && g.ambient_ground.w > -0.5 && !(dbg_view > 83.5 && dbg_view < 84.5);
+    let lod_pwl = !xg && (mat.mode == 0u || mat.mode == 1u) && (u32(round(in.uv2.y)) & 2097152u) != 0u && g.dome.w > 0.5 && g.ambient_ground.w > -0.5 && !(debug_view_off > 83.5 && debug_view_off < 84.5);
     if (lod_pwl) { albedo = vec4<f32>(xenos_gamma(albedo.rgb), albedo.a); }
     // leaves right in front of the camera would hide the car: cut them away
     if (mat.mode == 15u && distance(in.wpos, g.cam_pos.xyz) < 5.0) {
@@ -1631,7 +1631,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
         let hz26 = mix(g.fog_east.rgb, g.fog_west.rgb, 0.5 + 0.5 * to26.x / max(d26, 0.001));
         let fog26 = g.fog_color.rgb + (hz26 - g.fog_color.rgb) * g.fog_east.w;
         let col26 = mix(min(lit26, vec3<f32>(1.9921875)), fog26, clamp(fg26 * g.fog_color.a, 0.0, 1.0));
-        return vec4<f32>(tonemap(col26), select(in.uv2.x, 1.0, dbg_view > 580.5 && dbg_view < 581.5));
+        return vec4<f32>(tonemap(col26), select(in.uv2.x, 1.0, debug_view_off > 580.5 && debug_view_off < 581.5));
     }
     // (pass 8: a plant's impostor card - its texture is the type's picture, alpha 1.2 x a as
     // PSPropFoliage of the impostor effect writes it for the alpha-to-coverage)
@@ -1642,7 +1642,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     // sat(a x (1.3 + 0.95 sat((lod - 1) / 6))), lod the texture's computed level; at night
     // f14129accd056373, sat(2 a) - so the share of a pixel a leaf covers is that alpha, and
     // the hedges stay dense at a distance. Here: dithered. MCLA_DEBUG_VIEW=111: the cut at 0.5)
-    let leaf_model = mat.mode == 15u && !imp_card && in.lpos.z < -9000.0 && !(dbg_view > 110.5 && dbg_view < 111.5);
+    let leaf_model = mat.mode == 15u && !imp_card && in.lpos.z < -9000.0 && !(debug_view_off > 110.5 && debug_view_off < 111.5);
     if (leaf_model) {
         let lts = vec2<f32>(textureDimensions(t_diffuse));
         let ldx = dpdx(in.uv0) * lts;
@@ -1682,13 +1682,13 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
         sign_gain = f32((a >> 16u) & 255u) / 8.0;
         // (diagnostics 330: the signs' own light off - NeonIntensity 0, as the override captures cap/ne_0 of the original)
         // (331: also the ambient alone, no highlight; 332: also everything but the ambient)
-        if (dbg_view > 329.5 && dbg_view < 332.5) { sign_gain = 0.0; }
+        if (debug_view_off > 329.5 && debug_view_off < 332.5) { sign_gain = 0.0; }
         // (shop signs: the night picture on the second UV set. Neon signs: the program has ONE
         // texture coordinate input and takes the neon map with it, scaled by the flip-book -
         // VSCityNeon and the night draws' own vertex program both - so the map lies on the
         // diffuse's coordinates. It stood on the second set until 2026-10-12, which left the
         // poster over the start a flat grey; diagnostics 49 puts it back there.)
-        if ((b & 4096u) != 0u && (mat.mode == 24u || (dbg_view > 48.5 && dbg_view < 49.5))) { second_uv = in.uv1; }
+        if ((b & 4096u) != 0u && (mat.mode == 24u || (debug_view_off > 48.5 && debug_view_off < 49.5))) { second_uv = in.uv1; }
         // (the neon map as a flip-book: NumAnimsU x NumAnimsV frames, AnimSpeed frames an
         // hour of the game's clock - the shader steps it by its time-of-day global)
         let nu = max(f32(b & 7u), 1.0);
@@ -1725,29 +1725,29 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     let ng = normalize(select(in.normal, vec3<f32>(0.0, 1.0, 0.0), length(in.normal) < 0.01));
     var n = ng;
     // (diagnostics 310: what draws a pixel - red = material mode / 32, green = prop instance, blue = sign lit; alpha-free)
-    if (dbg_view > 309.5 && dbg_view < 310.5) { return vec4<f32>(to_scene(vec3<f32>(f32(mat.mode) / 32.0, select(0.0, 1.0, in.lpos.z < -9000.0), select(0.0, 1.0, sign_on) + select(0.0, 0.5, (u32(round(in.uv2.y)) & 8192u) != 0u))), 1.0); }
+    if (debug_view_off > 309.5 && debug_view_off < 310.5) { return vec4<f32>(to_scene(vec3<f32>(f32(mat.mode) / 32.0, select(0.0, 1.0, in.lpos.z < -9000.0), select(0.0, 1.0, sign_on) + select(0.0, 0.5, (u32(round(in.uv2.y)) & 8192u) != 0u))), 1.0); }
     // (diagnostics 312 / 313 / 314, signs only: the second texture as sampled, the first, (strength / 8, flip-book frames / 8, second set in use))
-    if (dbg_view > 311.5 && dbg_view < 314.5 && (mat.mode == 5u || mat.mode == 24u)) {
-        let dv = select(select(vec3<f32>(sign_gain / 8.0, f32(u32(round(in.uv2.y)) & 63u) / 64.0, select(0.0, 1.0, (u32(round(in.uv2.y)) & 4096u) != 0u)), albedo.rgb, dbg_view < 313.5), second.rgb, dbg_view < 312.5);
+    if (debug_view_off > 311.5 && debug_view_off < 314.5 && (mat.mode == 5u || mat.mode == 24u)) {
+        let dv = select(select(vec3<f32>(sign_gain / 8.0, f32(u32(round(in.uv2.y)) & 63u) / 64.0, select(0.0, 1.0, (u32(round(in.uv2.y)) & 4096u) != 0u)), albedo.rgb, debug_view_off < 313.5), second.rgb, debug_view_off < 312.5);
         return vec4<f32>(to_scene(dv), 1.0);
     }
     // (diagnostics 316, signs only: red = first texture's width / 512, green = second's, blue = fract(u x 8))
-    if (dbg_view > 315.5 && dbg_view < 316.5 && mat.mode == 5u) {
+    if (debug_view_off > 315.5 && debug_view_off < 316.5 && mat.mode == 5u) {
         return vec4<f32>(to_scene(vec3<f32>(f32(textureDimensions(t_diffuse).x) / 512.0, f32(textureDimensions(t_second).x) / 512.0, fract(in.uv0.x * 8.0))), 1.0);
     }
     // (diagnostics 317, signs only, yes / no: red = first texture's green above 0.6, green = second texture's green above 0.4, blue = the vertex's occlusion byte above 0.5;
     //  318: red = first above 0.4, green = second above 0.25, blue = night colour's green above 0.5)
-    if (dbg_view > 316.5 && dbg_view < 318.5 && mat.mode == 5u) {
-        let lo = dbg_view > 317.5;
+    if (debug_view_off > 316.5 && debug_view_off < 318.5 && mat.mode == 5u) {
+        let lo = debug_view_off > 317.5;
         return vec4<f32>(to_scene(0.9 * vec3<f32>(step(select(0.6, 0.4, lo), albedo.g), step(select(0.4, 0.25, lo), second.g), step(0.5, select(in.color1.a, in.color1.g, lo)))), 1.0);
     }
     // (diagnostics 315, signs only: red = u within 0.90 .. 0.97, green = v within 0.80 .. 0.86 (the wall lamps' piece of l_sha_gfxlight2), blue = v within 0.14 .. 0.20)
-    if (dbg_view > 314.5 && dbg_view < 315.5 && mat.mode == 5u) {
+    if (debug_view_off > 314.5 && debug_view_off < 315.5 && mat.mode == 5u) {
         let fu = fract(in.uv0);
         return vec4<f32>(to_scene(vec3<f32>(select(0.0, 0.9, fu.x > 0.90 && fu.x < 0.97), select(0.0, 0.9, fu.y > 0.80 && fu.y < 0.86), select(0.0, 0.9, fu.y > 0.14 && fu.y < 0.20))), 1.0);
     }
     // (diagnostics 293: the cars' stored tangent sign, bflip - green w +1, magenta w -1, yellow w 0 - on the car bodies / parts: obj.params.w > 15.5)
-    if (dbg_view > 292.5 && dbg_view < 293.5 && obj.params.w > 15.5) { return vec4<f32>(to_scene(select(select(vec3<f32>(0.0, 1.0, 0.0), vec3<f32>(1.0, 0.0, 1.0), in.bflip > 0.75), vec3<f32>(1.0, 1.0, 0.0), in.bflip > 0.25 && in.bflip < 0.75)), 1.0); }
+    if (debug_view_off > 292.5 && debug_view_off < 293.5 && obj.params.w > 15.5) { return vec4<f32>(to_scene(select(select(vec3<f32>(0.0, 1.0, 0.0), vec3<f32>(1.0, 0.0, 1.0), in.bflip > 0.75), vec3<f32>(1.0, 1.0, 0.0), in.bflip > 0.25 && in.bflip < 0.75)), 1.0); }
     // (for normal maps without stored tangents - the tyres' side walls: the surface's own
     // frame from how position and texture coordinate change across the screen)
     let tb_dp1 = dpdx(in.wpos);
@@ -1776,7 +1776,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
         // whole tangent plus a whole binormal and a mask of -1: the bronze door frames of the shop at the
         // gate, l_sha_win_bs. Flat and without the highlight instead, as modes 20 and 14 below have it.
         // MCLA_DEBUG_VIEW=251: as before (250, the binormal's old sign, too).)
-        if (hs.r + hs.g + hs.a <= 0.0 && !(dbg_view > 249.5 && dbg_view < 251.5)) { hs_k = 0u; }
+        if (hs.r + hs.g + hs.a <= 0.0 && !(debug_view_off > 249.5 && debug_view_off < 251.5)) { hs_k = 0u; }
     } else if (mat.mode == 20u) {
         hs = textureSample(t_fourth, s_diffuse, in.uv0);
         if (hs.r + hs.g + hs.a > 0.0) { hs_k = 8u + 33u * 256u + 5u * 32768u; }
@@ -1790,7 +1790,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
         // display terms. MCLA_DEBUG_VIEW=219: without, as before.)
         hs = textureSample(t_fourth, s_diffuse, in.uv0);
         d14 = round(in.uv2 / 64.0);
-        if (d14.y > 0.5 && d14.x > -0.5 && hs.r + hs.g + hs.a > 0.0 && !(dbg_view > 218.5 && dbg_view < 219.5)) { hs_k = 1u; }
+        if (d14.y > 0.5 && d14.x > -0.5 && hs.r + hs.g + hs.a > 0.0 && !(debug_view_off > 218.5 && debug_view_off < 219.5)) { hs_k = 1u; }
     }
     // Instanced props by day (2026-10-14; PSPropDefault 4c6e93d24108070b and PSPropBumpSpec
     // bbf9f06a3ad41e31 run on the customer-parking sign's own vertices with the capture's
@@ -1813,8 +1813,8 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     //   C = lerp(collector.x, collector.y, h / 8) one metre TOWARDS the sun from the pixel (xz - c16.xz),
     //   h the height above the plant's origin, not clamped; N' tilted by the map's alpha / red as on the props.
     // MCLA_DEBUG_VIEW=335: as before (mesh normal, the sun's shadow map, no highlight).
-    let trunk_d = mat.mode == 9u && in.lpos.z < -9000.0 && in.uv2.x < 0.5 && in.uv2.y < 0.5 && g.tone.w < 0.5 && in.uv1.y > 100.5 && in.uv1.y < 102.5 && g.dome.w > 0.5 && g.ambient_ground.w > -0.5 && !(dbg_view > 334.5 && dbg_view < 335.5);
-    let prop_hl = mat.mode == 9u && in.lpos.z < -9000.0 && in.uv2.x < 0.5 && in.uv2.y < 0.5 && g.tone.w < 0.5 && (!(in.uv1.y > 100.5 && in.uv1.y < 104.5) || trunk_d) && !(dbg_view > 149.5 && dbg_view < 150.5);
+    let trunk_d = mat.mode == 9u && in.lpos.z < -9000.0 && in.uv2.x < 0.5 && in.uv2.y < 0.5 && g.tone.w < 0.5 && in.uv1.y > 100.5 && in.uv1.y < 102.5 && g.dome.w > 0.5 && g.ambient_ground.w > -0.5 && !(debug_view_off > 334.5 && debug_view_off < 335.5);
+    let prop_hl = mat.mode == 9u && in.lpos.z < -9000.0 && in.uv2.x < 0.5 && in.uv2.y < 0.5 && g.tone.w < 0.5 && (!(in.uv1.y > 100.5 && in.uv1.y < 104.5) || trunk_d) && !(debug_view_off > 149.5 && debug_view_off < 150.5);
     // Instanced props at NIGHT (2026-10-14, work/lighting/gw_prop.py, gw_propvs.py: their two night
     // pixel programs of capture gw_L against rules, 2.4e-15 / 2.1e-14):
     //   plain (d3e24fe4abc0b712, vertex programs ?c2f5a877.. / ?20c121a8..):
@@ -1826,7 +1826,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     // vertex programs: sat(0.0667 y) x -0.8 + 1 into an interpolant's w) - the fill light fades
     // up the prop - and H the walls' fade with height. Nothing is occluded. The port had the sum
     // with the whole fill, no highlight and no H. MCLA_DEBUG_VIEW=218: as before.
-    let prop_n = mat.mode == 9u && in.lpos.z < -9000.0 && in.uv2.x < 0.5 && in.uv2.y < 0.5 && g.tone.w > 0.5 && in.uv1.y > 99.5 && !(in.uv1.y > 100.5 && in.uv1.y < 104.5) && !(dbg_view > 217.5 && dbg_view < 218.5);
+    let prop_n = mat.mode == 9u && in.lpos.z < -9000.0 && in.uv2.x < 0.5 && in.uv2.y < 0.5 && g.tone.w > 0.5 && in.uv1.y > 99.5 && !(in.uv1.y > 100.5 && in.uv1.y < 104.5) && !(debug_view_off > 217.5 && debug_view_off < 218.5);
     // (the bump-spec ones - props.rs marks the batches with a height / specular map in bit 1 of the
     // first colour word's alpha. Of the bump-spec rule the fill light's highlight is on; the map's
     // tilt and the lamps' highlights are NOT - with both on the customer-parking sign went to 85
@@ -1839,7 +1839,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     // T built below. On the customer-parking sign, whose map is flat, the rule run per pixel with the capture's constants
     // gives 0.1257 0.0951 0.0447 against the port's 0.1254 0.0949 0.0444 (work/lighting/bp_sign.py).
     // MCLA_DEBUG_VIEW=217 now turns the tilt and the lamps' highlights OFF: as it stood.)
-    let prop_nb_full = prop_nb && !(dbg_view > 216.5 && dbg_view < 217.5);
+    let prop_nb_full = prop_nb && !(debug_view_off > 216.5 && debug_view_off < 217.5);
     if (mat.mode == 9u) {
         let hs9 = textureSample(t_third, s_diffuse, in.uv0);
         if (prop_hl || prop_nb) {
@@ -1850,7 +1850,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     }
     if (mat.mode == 0u || mat.mode == 1u || mat.mode == 20u || mat.mode == 14u || prop_hl || prop_nb) {
         // (diagnostics 34: the height / specular map as sampled - red, alpha, green)
-        if (dbg_view > 33.5 && dbg_view < 34.5) { return vec4<f32>(to_scene(vec3<f32>(hs.r, hs.a, hs.g)), 1.0); }
+        if (debug_view_off > 33.5 && debug_view_off < 34.5) { return vec4<f32>(to_scene(vec3<f32>(hs.r, hs.a, hs.g)), 1.0); }
         let dpx = dpdx(in.wpos);
         let dpy = dpdy(in.wpos);
         let dux = dpdx(in.uv0);
@@ -1874,7 +1874,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
             // hand over cross(T, N) x w, VSCityBumpSpec 12 - 13, 23; +1 on two thirds of the city's
             // bump-mapped vertices, -1 on the rest, and with it the binormal points the way v grows
             // on 98 % of the triangles. MCLA_DEBUG_VIEW=250: +1 everywhere, as before.)
-            let bw = select(1.0 - 2.0 * in.bflip, 1.0, dbg_view > 249.5 && dbg_view < 250.5);
+            let bw = select(1.0 - 2.0 * in.bflip, 1.0, debug_view_off > 249.5 && debug_view_off < 250.5);
             var b = cross(t, ng) * bw;
             // (the props' vertex programs normalise the binormal after the instance matrix)
             if (prop_hl || prop_nb) { b = b * inverseSqrt(max(dot(b, b), 1e-12)); }
@@ -1885,7 +1885,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
             let k = hs_k;
             wall_spec = vec4<f32>(f32(k & 255u), f32((k >> 8u) & 127u) / 100.0, f32((k >> 15u) & 15u) / 10.0, hs.g * 2.0 - 1.0);
             // (diagnostics 43: the mask cut at zero, as it stood until 2026-10-12)
-            if (dbg_view > 42.5 && dbg_view < 43.5) { wall_spec.w = max(wall_spec.w, 0.0); }
+            if (debug_view_off > 42.5 && debug_view_off < 43.5) { wall_spec.w = max(wall_spec.w, 0.0); }
             if (mat.mode == 14u) {
                 // (the exponent's class, the mixer in twentieths, the intensity in hundredths)
                 let c14 = u32(d14.x);
@@ -1908,7 +1908,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     // the map's red about its middle: a horizontal vector on an upright card, so that a high sun
     // gives it little. The port had the vertical (or normalise(0)) there: the weeds stood in full
     // noon sun, +29 in the right view's box. MCLA_DEBUG_VIEW=400: as before.
-    if ((mat.mode == 0u || mat.mode == 1u) && in.neon_hl > -0.5 && !(length(in.normal) >= 0.01) && !(dbg_view > 399.5 && dbg_view < 400.5)) {
+    if ((mat.mode == 0u || mat.mode == 1u) && in.neon_hl > -0.5 && !(length(in.normal) >= 0.01) && !(debug_view_off > 399.5 && debug_view_off < 400.5)) {
         let z_dpx = dpdx(in.wpos);
         let z_dpy = dpdy(in.wpos);
         let z_dux = dpdx(in.uv0);
@@ -1932,7 +1932,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     // (the garage: the car's programs get their own ambient there - c57 ambYPos = sm_vGarageAmbientLighting,
     // a grey of 0.196, where the room's programs hold TODGarage's (0.035, 0.051, 0.027); the player's car is
     // the object with the night factor in obj.fill.w. Diagnostics 711: the room's ambient on the car.)
-    if (g.car_amb.w > 0.5 && obj.fill.w > 0.0 && !(dbg_view > 710.5 && dbg_view < 711.5)) { hemi = g.car_amb.rgb; }
+    if (g.car_amb.w > 0.5 && obj.fill.w > 0.0 && !(debug_view_off > 710.5 && debug_view_off < 711.5)) { hemi = g.car_amb.rgb; }
     let shadow = sun_shadow(in.wpos, ng);
     var ndl = max(dot(n, g.sun_dir.xyz), 0.0) * shadow;
     // PSPropFoliage: leaves are not lit by the light's colour or the ambient at all - the
@@ -1959,10 +1959,10 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
             // 47, run on numbers by work/lighting/plantday_verify.py: the map is read two metres
             // down the light's way from the leaf, and the height that blends ground -> 8 m
             // layer is taken there too: sat((h - 2 sun.y) / 8). 112: as before)
-            if (!(in.uv1.y > 103.5 && in.uv1.y < 104.5) && !(dbg_view > 111.5 && dbg_view < 112.5)) {
+            if (!(in.uv1.y > 103.5 && in.uv1.y < 104.5) && !(debug_view_off > 111.5 && debug_view_off < 112.5)) {
                 let lsp = foot - vec3<f32>(2.0 * g.sun_dir.x, 0.0, 2.0 * g.sun_dir.z);
                 leaf = mix(soft_collector(lsp), soft_collector_high(lsp), clamp((in.lpos.x - 2.0 * g.sun_dir.y) * 0.125, 0.0, 1.0));
-            } else if (!(dbg_view > 111.5 && dbg_view < 112.5)) {
+            } else if (!(debug_view_off > 111.5 && debug_view_off < 112.5)) {
                 // (a card - PSPropFoliage eeff113e5fd82321, instructions 5 - 13: ONE metre down
                 // the light's way, the height as it is: sat(h / 8))
                 let csp = foot - vec3<f32>(g.sun_dir.x, 0.0, g.sun_dir.z);
@@ -2020,7 +2020,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
             // (the cars' map - moon_dir.w > 0.5 - has the road without its grime layer: PSCityRoadEnv
             // and the night map's road program fetch the diffuse and the decal map alone.
             // Diagnostics 210: with it, as until 2026-10-14)
-            if (!(g.moon_dir.w > 0.5) || (dbg_view > 209.5 && dbg_view < 210.5)) {
+            if (!(g.moon_dir.w > 0.5) || (debug_view_off > 209.5 && debug_view_off < 210.5)) {
                 base = mix(base, grime.rgb * in.color.rgb, grime.a * in.color.a);
             }
         } else {
@@ -2036,7 +2036,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
         // its wet terms yet - the mirror and highlight this older code laid on a wet night road
         // were several times what the original shows, so there the road stays as in the dry)
         // (interior floors - the sector's interior uniform: their programs have no wet terms at all; 75: as before)
-        let dry_in = obj.dents[5].w < -6.5 && obj.dents[5].y > 0.5 && !(dbg_view > 74.5 && dbg_view < 75.5);
+        let dry_in = obj.dents[5].w < -6.5 && obj.dents[5].y > 0.5 && !(debug_view_off > 74.5 && debug_view_off < 75.5);
         let wet = select(g.shadow_params.z, 0.0, dry_in || (g.dome.w > 0.5 && g.ambient_ground.w > -0.5 && (mat.mode == 20u || g.tone.w > 0.5)));
         base = base * (1.0 - 0.4 * wet);
         spec = 2.2 * wet;
@@ -2110,7 +2110,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
         // fades were worked out per pixel (the same but for the kinks of sat(2 t - 0.5) inside a
         // triangle). Diagnostics 690: as before.
         var paint = pc_a;
-        if (dbg_view > 689.5 && dbg_view < 690.5) {
+        if (debug_view_off > 689.5 && debug_view_off < 690.5) {
             if (fade == 1u) {
                 var pbt0 = PAINT_B;
                 paint = mix(pc_b, pc_a, pow(clamp(dot(n, v), 0.0, 1.0), max(pbt0[pti].w, 0.05)));
@@ -2129,8 +2129,8 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
             paint = mix(pc_a, pc_b, in.paint_s);
         }
         // (diagnostics 691: the directional fade's vertex value itself; 692: the two-tone's weight)
-        if (dbg_view > 690.5 && dbg_view < 691.5) { return vec4<f32>(to_scene(vec3<f32>(in.paint_s)), 1.0); }
-        if (dbg_view > 691.5 && dbg_view < 692.5) {
+        if (debug_view_off > 690.5 && debug_view_off < 691.5) { return vec4<f32>(to_scene(vec3<f32>(in.paint_s)), 1.0); }
+        if (debug_view_off > 691.5 && debug_view_off < 692.5) {
             var pbt2 = PAINT_B;
             return vec4<f32>(to_scene(vec3<f32>(clamp(pow(abs(dot(paint_flake_n(n, in.uv0, pti, scraped6), v)), pbt2[pti].w), 0.0, 1.0))), 1.0);
         }
@@ -2255,7 +2255,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
             on = f32(hand != (state == 2));
             emissive = albedo.rgb * 1.2 * on * smoothstep(0.25, 0.6, max(albedo.r, albedo.g));
         }
-        if (dbg_view > 7.5 && dbg_view < 8.5) { return vec4<f32>(to_scene(vec3<f32>(f32(state) / 3.0, in.uv0.y, lamp_px)), 1.0); }
+        if (debug_view_off > 7.5 && debug_view_off < 8.5) { return vec4<f32>(to_scene(vec3<f32>(f32(state) / 3.0, in.uv0.y, lamp_px)), 1.0); }
         base = albedo.rgb * mix(1.0, 0.22, lamp_px * (1.0 - on));
         emissive = emissive + albedo.rgb * lamp_px * on * 3.2 * f32(in.uv0.x < 0.30);
         spec = 0.3;
@@ -2278,9 +2278,9 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
             // is cross(T, N) x det. Here: T from the derivatives, the binormal's length and direction from the rule.
             // MCLA_DEBUG_VIEW=290: bit by derivatives as before; 291: bit x (1 - 2 bflip); 292: the rule against the old, red same / green reversed)
             let tr_b = cross(tan * inverseSqrt(max(dot(tan, tan), 1e-12)), ng) * ((1.0 - 2.0 * in.bflip) * select(-1.0, 1.0, dot(cross(obj.model[0].xyz, obj.model[1].xyz), obj.model[2].xyz) >= 0.0) * length(bit));
-            if (dbg_view > 291.5 && dbg_view < 292.5) { return vec4<f32>(to_scene(select(vec3<f32>(0.0, 1.0, 0.0), vec3<f32>(1.0, 0.0, 0.0), dot(tr_b, bit) >= 0.0)), 1.0); }
-            if (dbg_view > 290.5 && dbg_view < 291.5) { bit = bit * (1.0 - 2.0 * in.bflip); }
-            else if (!(dbg_view > 289.5 && dbg_view < 290.5)) { bit = tr_b; }
+            if (debug_view_off > 291.5 && debug_view_off < 292.5) { return vec4<f32>(to_scene(select(vec3<f32>(0.0, 1.0, 0.0), vec3<f32>(1.0, 0.0, 0.0), dot(tr_b, bit) >= 0.0)), 1.0); }
+            if (debug_view_off > 290.5 && debug_view_off < 291.5) { bit = bit * (1.0 - 2.0 * in.bflip); }
+            else if (!(debug_view_off > 289.5 && debug_view_off < 290.5)) { bit = tr_b; }
             let inv = inverseSqrt(max(max(dot(tan, tan), dot(bit, bit)), 1e-12));
             n = normalize(tan * inv * nm.x * 1.6 + bit * inv * nm.y * 1.6 + ng * max(nm.z, 0.2));
             base = vec3<f32>(0.035, 0.035, 0.038) + albedo.rgb * 0.85;
@@ -2391,35 +2391,35 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
         return vec4<f32>(obj.color.rgb * pulse * 2.0, obj.color.a * fade);
     }
 
-    if (dbg_view > 5.5 && dbg_view < 6.5) { return vec4<f32>(to_scene(albedo.rgb), 1.0); }
-    if (dbg_view > 6.5 && dbg_view < 7.5) { return vec4<f32>(to_scene(vec3<f32>(f32(mat.mode) / 32.0, f32(mat.mode % 4u) / 3.0, f32(mat.mode % 3u) / 2.0)), 1.0); }
-    if (dbg_view > 0.5 && dbg_view < 1.5) { return vec4<f32>(to_scene(vec3<f32>(shadow)), 1.0); }
+    if (debug_view_off > 5.5 && debug_view_off < 6.5) { return vec4<f32>(to_scene(albedo.rgb), 1.0); }
+    if (debug_view_off > 6.5 && debug_view_off < 7.5) { return vec4<f32>(to_scene(vec3<f32>(f32(mat.mode) / 32.0, f32(mat.mode % 4u) / 3.0, f32(mat.mode % 3u) / 2.0)), 1.0); }
+    if (debug_view_off > 0.5 && debug_view_off < 1.5) { return vec4<f32>(to_scene(vec3<f32>(shadow)), 1.0); }
     // (diagnostics 360 / 361: the sun's visibility as a NUMBER - (shadow - floor) / (1 - floor) in 64 steps, its high
     // three bits in view 360 and its low three in 361, one bit a channel, so that no tone curve touches it;
     // work/lighting/se_num.py puts the two shots together)
-    if (dbg_view > 359.5 && dbg_view < 361.5) {
+    if (debug_view_off > 359.5 && debug_view_off < 361.5) {
         let v6 = u32(clamp((shadow - (1.0 - g.shadow_params.x)) / max(g.shadow_params.x, 1e-4), 0.0, 1.0) * 63.0 + 0.5);
-        let b3 = select(v6 & 7u, v6 >> 3u, dbg_view < 360.5);
+        let b3 = select(v6 & 7u, v6 >> 3u, debug_view_off < 360.5);
         return vec4<f32>(f32(b3 & 4u) * 0.25, f32(b3 & 2u) * 0.5, f32(b3 & 1u), 1.0);
     }
     // (diagnostics 68: which cascade holds the point - sun_shadow_casc)
-    if (dbg_view > 67.5 && dbg_view < 68.5) { return vec4<f32>(to_scene(vec3<f32>(shadow, fract(shadow * 4.0 + 0.5), 1.0 - shadow)), 1.0); }
-    if (dbg_view > 1.5 && dbg_view < 2.5) { return vec4<f32>(to_scene(n * 0.5 + 0.5), 1.0); }
-    if (dbg_view > 2.5 && dbg_view < 3.5) { return vec4<f32>(to_scene(in.color.rgb), 1.0); }
-    if (dbg_view > 3.5 && dbg_view < 4.5) { return vec4<f32>(to_scene(in.color1.rgb), 1.0); }
+    if (debug_view_off > 67.5 && debug_view_off < 68.5) { return vec4<f32>(to_scene(vec3<f32>(shadow, fract(shadow * 4.0 + 0.5), 1.0 - shadow)), 1.0); }
+    if (debug_view_off > 1.5 && debug_view_off < 2.5) { return vec4<f32>(to_scene(n * 0.5 + 0.5), 1.0); }
+    if (debug_view_off > 2.5 && debug_view_off < 3.5) { return vec4<f32>(to_scene(in.color.rgb), 1.0); }
+    if (debug_view_off > 3.5 && debug_view_off < 4.5) { return vec4<f32>(to_scene(in.color1.rgb), 1.0); }
     // (71: the night fill colour by place - the instance's own and the object's, work/map/pass7_notes.md)
-    if (dbg_view > 70.5 && dbg_view < 71.5) { return vec4<f32>(to_scene(in.fill.rgb + obj.fill.rgb + fig_fill), 1.0); }
+    if (debug_view_off > 70.5 && debug_view_off < 71.5) { return vec4<f32>(to_scene(in.fill.rgb + obj.fill.rgb + fig_fill), 1.0); }
     // (diagnostics 24: the first colour set by bands - alpha > 0.9 red, > 0.6 green, > 0.3 blue, > 0.05 grey, else black; 25 the same for its blue)
-    if (dbg_view > 23.5 && dbg_view < 25.5) {
-        let q = select(in.color.a, in.color.b, dbg_view > 24.5);
+    if (debug_view_off > 23.5 && debug_view_off < 25.5) {
+        let q = select(in.color.a, in.color.b, debug_view_off > 24.5);
         var c = vec3<f32>(0.0);
         if (q > 0.9) { c = vec3<f32>(0.3, 0.0, 0.0); } else if (q > 0.6) { c = vec3<f32>(0.0, 0.3, 0.0); } else if (q > 0.3) { c = vec3<f32>(0.0, 0.0, 0.3); } else if (q > 0.05) { c = vec3<f32>(0.08); }
         return vec4<f32>(c, 1.0);
     }
     // (31: the second texture; 32: the surroundings along the mirror ray)
-    if (dbg_view > 30.5 && dbg_view < 31.5) { return vec4<f32>(to_scene(second.rgb), 1.0); }
-    if (dbg_view > 31.5 && dbg_view < 32.5) { return vec4<f32>(to_scene(env_color(reflect(-v, n))), 1.0); }
-    if (dbg_view > 4.5 && dbg_view < 5.5) { return vec4<f32>(to_scene(vec3<f32>(in.color1.a, in.color.a, 0.0)), 1.0); }
+    if (debug_view_off > 30.5 && debug_view_off < 31.5) { return vec4<f32>(to_scene(second.rgb), 1.0); }
+    if (debug_view_off > 31.5 && debug_view_off < 32.5) { return vec4<f32>(to_scene(env_color(reflect(-v, n))), 1.0); }
+    if (debug_view_off > 4.5 && debug_view_off < 5.5) { return vec4<f32>(to_scene(vec3<f32>(in.color1.a, in.color.a, 0.0)), 1.0); }
     // The original's rule (PSCityDefault, PSCityBumpSpec, PSCityGrime, PSCityLOD ...):
     //   diffuse * (gLightAmbient * occlusion + gLightColor * n.l * occlusion * sun)
     // with sun = twice the shadow collector's value: 1 in light, 1 - m_ShadowFade in shade
@@ -2436,11 +2436,11 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     // - NO occlusion: the models' one colour word is the packed ground height, which the program does not fetch.
     // Its first byte, 0, stood here as the occlusion: the far city by day was black under the fog.
     // Diagnostics 640: as it stood; 641: the sun's share alone; 642: the ambient alone.)
-    let fc_lod_day = g.tone.w < 0.5 && (mat.mode == 0u || mat.mode == 1u) && (u32(round(in.uv2.y)) & 2097152u) != 0u && !(dbg_view > 639.5 && dbg_view < 640.5);
+    let fc_lod_day = g.tone.w < 0.5 && (mat.mode == 0u || mat.mode == 1u) && (u32(round(in.uv2.y)) & 2097152u) != 0u && !(debug_view_off > 639.5 && debug_view_off < 640.5);
     if (fc_lod_day) {
         light_in = hemi + g.sun_color.rgb * g.sun_dir.w * ndl;
-        if (dbg_view > 640.5 && dbg_view < 641.5) { light_in = g.sun_color.rgb * g.sun_dir.w * ndl; }
-        if (dbg_view > 641.5 && dbg_view < 642.5) { light_in = hemi; }
+        if (debug_view_off > 640.5 && debug_view_off < 641.5) { light_in = g.sun_color.rgb * g.sun_dir.w * ndl; }
+        if (debug_view_off > 641.5 && debug_view_off < 642.5) { light_in = hemi; }
     }
     // The cars' map by day (moon_dir.w > 0.5; listings by work/lighting/em_prog.py sv_env_12):
     // - the road, PSCityRoadEnv: `base x occlusion x (gLightAmbient + gLightColor x n.l)` on the
@@ -2451,7 +2451,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     //   = n.l / sqrt(|n|^2 + u^2), u the first texture coordinate - the program normalises the
     //   light by the length of the whole interpolant (instruction 4, a dp4 over normal and u).
     // Diagnostics 210: as until 2026-10-14.
-    if (g.moon_dir.w > 0.5 && g.tone.w < 0.5 && !(dbg_view > 209.5 && dbg_view < 210.5)) {
+    if (g.moon_dir.w > 0.5 && g.tone.w < 0.5 && !(debug_view_off > 209.5 && debug_view_off < 210.5)) {
         let nv_len = max(length(in.normal), 0.0001);
         let ndl_v = max(dot(in.normal, g.sun_dir.xyz), 0.0);
         if (mat.mode == 4u) {
@@ -2475,7 +2475,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     // - the walls' night form with the billboard's literals. It ran the DAY program round the clock here: no lamps,
     // no baked light - the 101's signs, each with a lamp of its own 2.6 m in front, stayed dark.
     // MCLA_DEBUG_VIEW=560: the day program at night, as before; 561: without the highlight; 562: without its own light.)
-    let gy_bill_n = night_prog && mat.mode == 5u && in.uv2.x > 0.5 && (u32(round(in.uv2.y)) & 4096u) == 0u && g.dome.w > 0.5 && !(dbg_view > 559.5 && dbg_view < 560.5);
+    let gy_bill_n = night_prog && mat.mode == 5u && in.uv2.x > 0.5 && (u32(round(in.uv2.y)) & 4096u) == 0u && g.dome.w > 0.5 && !(debug_view_off > 559.5 && debug_view_off < 560.5);
     // (terrain at night: its lights come unoccluded - see below)
     var terr_n = false;
     // (a neon sign's own light under the night program: added after the fade with height)
@@ -2491,7 +2491,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
         // the original's poster holds the ambient alone, 2.8 4.9 5.8 thousandths, and nothing
         // once the ambient is off too; the port had 10 11 13 of lamp light there. Diagnostics 333:
         // four lamps, as before.)
-        let neon3 = mat.mode == 5u && in.uv2.x > 0.5 && (u32(round(in.uv2.y)) & 4096u) != 0u && !(dbg_view > 332.5 && dbg_view < 333.5);
+        let neon3 = mat.mode == 5u && in.uv2.x > 0.5 && (u32(round(in.uv2.y)) & 4096u) != 0u && !(debug_view_off > 332.5 && debug_view_off < 333.5);
         if (neon3) {
             light_in = (hemi + in.color1.rgb * 1.25 * g.ambient_ground.x + interior_lamps(in.wpos, n, n, 0.0, 3)[0] * g.ambient_ground.x + g.key_col.rgb * max(dot(n, g.key_dir.xyz), 0.0)) * occ;
         }
@@ -2517,7 +2517,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
             // em_prog.py sv_env_23.5 VSCityGrimeEnv) is of the road's kind instead: `diffuse x
             // occlusion x (V + two lamps, doubled, unfaded + dynamic lights)` - no ambient, no
             // grey, and the diffuse map alone (no grime layer).
-            if (!(dbg_view > 209.5 && dbg_view < 210.5)) {
+            if (!(debug_view_off > 209.5 && debug_view_off < 210.5)) {
                 let nvn = in.normal / max(length(in.normal), 0.0001);
                 if ((mat.mode == 0u || mat.mode == 1u) && in.uv2.x > 0.5 && in.uv2.x < 2.5) {
                     light_in = (in.color1.rgb + grid_lamps_env_road(in.wpos, nvn) + g.key_col.rgb * max(dot(nvn, g.key_dir.xyz), 0.0)) * occ;
@@ -2535,10 +2535,10 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
             // gPropNFLColor.w) and NO ambient in it. The lamp-lit asphalt of the original's map
             // is brown and 1.5 - 5 times the port's below the horizon (23:30 and 05:45 maps read
             // out of the game). Diagnostics 100: the walls' rule, as before.
-            if (mat.mode == 4u && !(dbg_view > 99.5 && dbg_view < 100.5)) {
+            if (mat.mode == 4u && !(debug_view_off > 99.5 && debug_view_off < 100.5)) {
                 light_in = (in.color1.rgb + grid_lamp_env(in.wpos, n) + g.key_col.rgb * max(dot(n, g.key_dir.xyz), 0.0)) * occ;
                 // (2026-10-14: its lamps are two, doubled and not faded - grid_lamps_env_road. 210: as before)
-                if (!(dbg_view > 209.5 && dbg_view < 210.5)) {
+                if (!(debug_view_off > 209.5 && debug_view_off < 210.5)) {
                     light_in = (in.color1.rgb + grid_lamps_env_road(in.wpos, n) + g.key_col.rgb * max(dot(n, g.key_dir.xyz), 0.0)) * occ;
                 }
             }
@@ -2546,7 +2546,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
             // `day picture x (night picture + the cell's lamps + the dynamic lights)` - the night
             // picture as it is (x 1, where the main view has x 1.25 x gPropNFLColor.w), no
             // ambient, no occlusion. The port's map had the walls' rule: no lit windows at all.
-            if ((mat.mode == 0u || mat.mode == 1u) && (u32(round(in.uv2.y)) & 2097152u) != 0u && !(dbg_view > 99.5 && dbg_view < 100.5)) {
+            if ((mat.mode == 0u || mat.mode == 1u) && (u32(round(in.uv2.y)) & 2097152u) != 0u && !(debug_view_off > 99.5 && debug_view_off < 100.5)) {
                 light_in = pwl_decode(hs.rgb) + grid_lamp_env(in.wpos, n) + g.key_col.rgb * max(dot(n, g.key_dir.xyz), 0.0);
                 // (2026-10-15, the listing read again - em_prog.py sv_env_23.5 VSCityLODEnvNight, PS
                 // instructions 9 - 15 fetch BOTH pairs of LightIndexGridSampler1, 22: intensity x 256
@@ -2554,12 +2554,12 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
                 // road's kind: two lamps, doubled, unfaded. The far models' street level in the map's
                 // low band read 0.010 / 0.018 against 0.019 / 0.028 at night. Diagnostics 420: one
                 // lamp x gPropNFLColor.w, as before.)
-                if (!(dbg_view > 419.5 && dbg_view < 420.5)) {
+                if (!(debug_view_off > 419.5 && debug_view_off < 420.5)) {
                     light_in = pwl_decode(hs.rgb) + grid_lamps_env_road(in.wpos, n) + g.key_col.rgb * max(dot(n, g.key_dir.xyz), 0.0);
                 }
                 // (diagnostics 421: no lamps at all; 422: the night picture alone)
-                if (dbg_view > 420.5 && dbg_view < 421.5) { light_in = pwl_decode(hs.rgb) + g.key_col.rgb * max(dot(n, g.key_dir.xyz), 0.0); }
-                if (dbg_view > 421.5 && dbg_view < 422.5) { light_in = pwl_decode(hs.rgb); }
+                if (debug_view_off > 420.5 && debug_view_off < 421.5) { light_in = pwl_decode(hs.rgb) + g.key_col.rgb * max(dot(n, g.key_dir.xyz), 0.0); }
+                if (debug_view_off > 421.5 && debug_view_off < 422.5) { light_in = pwl_decode(hs.rgb); }
             }
         }
         if (g.tone.w < 1.5 && (mat.mode == 0u || mat.mode == 1u) && (u32(round(in.uv2.y)) & 2097152u) != 0u) {
@@ -2582,8 +2582,8 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
             // lamps - as it stood; 88: the night picture by the sRGB curve.)
             var np = pwl_decode(hs.rgb);
             var lod_lamps = interior_lamps(in.wpos, n, n, 0.0, 3)[0] * g.ambient_ground.x;
-            if (dbg_view > 83.5 && dbg_view < 84.5) { np = pow(hs.rgb, vec3<f32>(2.2)); lod_lamps = grid_lamps(in.wpos, n); }
-            if (dbg_view > 87.5 && dbg_view < 88.5) { np = srgb_decode(hs.rgb); }
+            if (debug_view_off > 83.5 && debug_view_off < 84.5) { np = pow(hs.rgb, vec3<f32>(2.2)); lod_lamps = grid_lamps(in.wpos, n); }
+            if (debug_view_off > 87.5 && debug_view_off < 88.5) { np = srgb_decode(hs.rgb); }
             light_in = hemi + np * 1.25 * abs(g.ambient_ground.x) + lod_lamps + g.key_col.rgb * max(dot(n, g.key_dir.xyz), 0.0);
         }
         // Hillsides and lawns (PSMultiLight of city/0x16ea3597 CityTerrain and 0xb7b45988
@@ -2594,21 +2594,21 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
         // come unoccluded (the wall programs occlude the whole sum). CityTerrain also tilts the
         // normal by its three normal maps, fading out over the first three mip levels - not
         // bound here. Diagnostics 82: the walls' sum, as it stood.
-        if (g.tone.w < 1.5 && mat.mode == 21u && !(dbg_view > 81.5 && dbg_view < 82.5)) {
+        if (g.tone.w < 1.5 && mat.mode == 21u && !(debug_view_off > 81.5 && debug_view_off < 82.5)) {
             terr_n = true;
             light_in = hemi * occ + in.color1.rgb * (1.25 * abs(g.ambient_ground.x)) + grid_lamps(in.wpos, n) + g.key_col.rgb * max(dot(n, g.key_dir.xyz), 0.0);
         }
         // (diagnostics, MCLA_DEBUG_VIEW 20 / 21 / 22: the ambient, the vertex light, the lamps alone)
-        if (dbg_view > 330.5 && dbg_view < 331.5) { light_in = hemi * occ; }
-        if (dbg_view > 331.5 && dbg_view < 332.5) { light_in = light_in - hemi * occ; }
-        if (dbg_view > 19.5 && dbg_view < 20.5) { light_in = hemi * occ; }
-        if (dbg_view > 20.5 && dbg_view < 21.5) { light_in = in.color1.rgb * 1.25 * g.ambient_ground.x * occ; }
-        if (dbg_view > 21.5 && dbg_view < 22.5) { light_in = grid_lamps(in.wpos, n) * occ; }
-        if (dbg_view > 22.5 && dbg_view < 23.5) { light_in = g.key_col.rgb * max(dot(n, g.key_dir.xyz), 0.0) * occ * 4.0; }
+        if (debug_view_off > 330.5 && debug_view_off < 331.5) { light_in = hemi * occ; }
+        if (debug_view_off > 331.5 && debug_view_off < 332.5) { light_in = light_in - hemi * occ; }
+        if (debug_view_off > 19.5 && debug_view_off < 20.5) { light_in = hemi * occ; }
+        if (debug_view_off > 20.5 && debug_view_off < 21.5) { light_in = in.color1.rgb * 1.25 * g.ambient_ground.x * occ; }
+        if (debug_view_off > 21.5 && debug_view_off < 22.5) { light_in = grid_lamps(in.wpos, n) * occ; }
+        if (debug_view_off > 22.5 && debug_view_off < 23.5) { light_in = g.key_col.rgb * max(dot(n, g.key_dir.xyz), 0.0) * occ * 4.0; }
         // (diagnostics 200 - 202 / 203 - 205 / 206 - 208: the binary digits of x - 700 / z + 1000 / y, metres
         // 128 .. 0.5 - to place a pixel in the world; run with --no-post)
-        if (dbg_view > 199.5 && dbg_view < 208.5) {
-            let dk = u32(dbg_view - 200.0 + 0.5);
+        if (debug_view_off > 199.5 && debug_view_off < 208.5) {
+            let dk = u32(debug_view_off - 200.0 + 0.5);
             let dv = select(select(in.wpos.y, in.wpos.z + 1000.0, dk / 3u == 1u), in.wpos.x - 700.0, dk / 3u == 0u);
             let dq = u32(max(dv, 0.0) * 2.0);
             let sh = 6u - (dk % 3u) * 3u;
@@ -2645,8 +2645,8 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     // interior floors; 77 the tiles' older mirror term (the surroundings' map); 78 without the
     // unoccluded specular terms.
     // (world::mark_tunnel_road: TUNNEL_ROAD_MARK = 512 added to the grime coordinate's y)
-    let tunnel_road = interior_obj && mat.mode == 4u && in.uv2.y > 256.0 && !(dbg_view > 75.5 && dbg_view < 76.5);
-    let int_new = !(dbg_view > 74.5 && dbg_view < 75.5) && !(dbg_view > 69.5 && dbg_view < 70.5);
+    let tunnel_road = interior_obj && mat.mode == 4u && in.uv2.y > 256.0 && !(debug_view_off > 75.5 && debug_view_off < 76.5);
+    let int_new = !(debug_view_off > 74.5 && debug_view_off < 75.5) && !(debug_view_off > 69.5 && debug_view_off < 70.5);
     var int_tile = false;
     var int_wall = false;
     var int_spec = vec3<f32>(0.0);
@@ -2668,21 +2668,21 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
         // (the pass 7 line; kept for diagnostics 75 - the newer forms follow)
         if (!int_new) { light_in = (in.color1.rgb * 1.25 + grid_lamps_by(in.wpos, n, 1.0) + dir_in) * select(occ, 1.0, tile_in); }
         // (diagnostics 70: the line as it stood before pass 7)
-        if (dbg_view > 69.5 && dbg_view < 70.5) { light_in = (hemi + in.color1.rgb * 1.25 + grid_lamps_by(in.wpos, n, 1.0)) * occ; }
+        if (debug_view_off > 69.5 && debug_view_off < 70.5) { light_in = (hemi + in.color1.rgb * 1.25 + grid_lamps_by(in.wpos, n, 1.0)) * occ; }
         if (int_new) {
             int_wall = mat.mode == 0u || mat.mode == 1u;
             int_tile = tile_in;
             let v1 = in.color1.rgb;
-            let no_spec = dbg_view > 77.5 && dbg_view < 78.5;
+            let no_spec = debug_view_off > 77.5 && debug_view_off < 78.5;
             if (tile_in) {
                 let il = interior_lamps(in.wpos, n, reflect(-v, n), select(0.0, 2.0 * max(wall_spec.x, 1.0), hs_k != 0u), 3);
                 light_in = v1 * 1.25 + il[0] + dir_in;
                 if (hs_k != 0u && !no_spec) { int_spec = (il[1] + v1 * 0.3125) * wall_spec.w; }
-                if (!(dbg_view > 76.5 && dbg_view < 77.5)) {
+                if (!(debug_view_off > 76.5 && debug_view_off < 77.5)) {
                     let rv = reflect(-v, n);
                     let pic = xgm(textureSampleLevel(t_fourth, s_diffuse, vec2<f32>(0.5 - 0.9 * rv.x, 0.5 - 0.47 * rv.y), 0.0).rgb);
                     // (diagnostics 79: the picture alone, as sampled)
-                    if (dbg_view > 78.5 && dbg_view < 79.5) { return vec4<f32>(to_scene(pic), 1.0); }
+                    if (debug_view_off > 78.5 && debug_view_off < 79.5) { return vec4<f32>(to_scene(pic), 1.0); }
                     let fr4 = 1.0 - clamp(dot(n, v), 0.0, 1.0);
                     int_spec = int_spec + pic * ((in.uv2.x - 3.0) * (1.0 - second.a * in.color.a) * 0.2 * (1.0 + fr4 * fr4 * fr4 * fr4));
                 }
@@ -2713,32 +2713,32 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
             // collector) - the ambient is NOT shaded by the collector, c is the occlusion byte
             // as it is, N the world normal as the matrix gives it, not normalised (the plant's
             // scale leaks into N.L). plantday_verify.py: 2e-8. 112: as before)
-            if (!imp_card && !(dbg_view > 111.5 && dbg_view < 112.5)) {
+            if (!imp_card && !(debug_view_off > 111.5 && debug_view_off < 112.5)) {
                 let n_raw_d = n * select(1.0, max(-1.0 - in.neon_hl, 0.0), in.neon_hl < -1.0001);
                 light_in = 0.75 * in.color1.a * (hemi + g.sun_color.rgb * g.sun_dir.w * (0.1 + 0.9 * clamp(dot(n_raw_d, g.sun_dir.xyz), 0.0, 1.0)) * leaf);
                 // (diagnostics 414 / 415: a plant model's leaves without the sun's term / without the ambient - the running
                 //  original's counterpart: vertex constants 39 / 26 zeroed on PSPropFoliage 6ebf788b1c5456fc, work/lighting/sn_ovr.py)
-                if (dbg_view > 413.5 && dbg_view < 414.5) { light_in = 0.75 * in.color1.a * hemi; }
+                if (debug_view_off > 413.5 && debug_view_off < 414.5) { light_in = 0.75 * in.color1.a * hemi; }
                 // (416 / 417: the sun's term alone with a light of 0.3 grey / the ambient alone at 0.3 grey - the original with constants 39 / 26 set so)
-                if (dbg_view > 415.5 && dbg_view < 416.5) { light_in = vec3<f32>(0.75 * in.color1.a * 0.3 * (0.1 + 0.9 * clamp(dot(n_raw_d, g.sun_dir.xyz), 0.0, 1.0)) * leaf); }
-                if (dbg_view > 416.5 && dbg_view < 417.5) { light_in = vec3<f32>(0.75 * in.color1.a * 0.3); }
-                if (dbg_view > 414.5 && dbg_view < 415.5) { light_in = 0.75 * in.color1.a * g.sun_color.rgb * g.sun_dir.w * (0.1 + 0.9 * clamp(dot(n_raw_d, g.sun_dir.xyz), 0.0, 1.0)) * leaf; }
+                if (debug_view_off > 415.5 && debug_view_off < 416.5) { light_in = vec3<f32>(0.75 * in.color1.a * 0.3 * (0.1 + 0.9 * clamp(dot(n_raw_d, g.sun_dir.xyz), 0.0, 1.0)) * leaf); }
+                if (debug_view_off > 416.5 && debug_view_off < 417.5) { light_in = vec3<f32>(0.75 * in.color1.a * 0.3); }
+                if (debug_view_off > 414.5 && debug_view_off < 415.5) { light_in = 0.75 * in.color1.a * g.sun_color.rgb * g.sun_dir.w * (0.1 + 0.9 * clamp(dot(n_raw_d, g.sun_dir.xyz), 0.0, 1.0)) * leaf; }
                 // (diagnostics 403 - 409, a plant model's leaf terms as greys (the tone map works on the luminance: one term a view):
                 //  403 the occlusion byte / 4, 404 (0.1 + 0.9 sat(N.L)) / 4, 405 grey 0.125, 406 grey 0.25, 407 the collector value C / 4,
                 //  408 its ground layer / 4, 409 its 8 m layer / 4 - read with work/lighting/pv_diag.py)
-                if (dbg_view > 402.5 && dbg_view < 413.5) {
+                if (debug_view_off > 402.5 && debug_view_off < 413.5) {
                     let dsp = vec3<f32>(in.wpos.x - 2.0 * g.sun_dir.x, in.lpos.y, in.wpos.z - 2.0 * g.sun_dir.z);
                     var dg = in.color1.a;
-                    if (dbg_view > 403.5) { dg = 0.1 + 0.9 * clamp(dot(n_raw_d, g.sun_dir.xyz), 0.0, 1.0); }
-                    if (dbg_view > 404.5) { dg = 0.5; }
-                    if (dbg_view > 405.5) { dg = 1.0; }
-                    if (dbg_view > 406.5) { dg = leaf; }
-                    if (dbg_view > 407.5) { dg = soft_collector(dsp); }
-                    if (dbg_view > 408.5) { dg = soft_collector_high(dsp); }
-                    if (dbg_view > 409.5) { dg = soft_collector(vec3<f32>(825.2, 0.0, -850.6)); }
-                    if (dbg_view > 410.5) { dg = soft_collector_high(vec3<f32>(825.2, 0.0, -850.6)); }
-                    if (dbg_view > 411.5) { dg = soft_collector_high(vec3<f32>(827.5, 0.0, -854.5)); }
-                    if (dbg_view > 412.5) { dg = soft_collector(vec3<f32>(819.6, 0.0, -808.4)); }
+                    if (debug_view_off > 403.5) { dg = 0.1 + 0.9 * clamp(dot(n_raw_d, g.sun_dir.xyz), 0.0, 1.0); }
+                    if (debug_view_off > 404.5) { dg = 0.5; }
+                    if (debug_view_off > 405.5) { dg = 1.0; }
+                    if (debug_view_off > 406.5) { dg = leaf; }
+                    if (debug_view_off > 407.5) { dg = soft_collector(dsp); }
+                    if (debug_view_off > 408.5) { dg = soft_collector_high(dsp); }
+                    if (debug_view_off > 409.5) { dg = soft_collector(vec3<f32>(825.2, 0.0, -850.6)); }
+                    if (debug_view_off > 410.5) { dg = soft_collector_high(vec3<f32>(825.2, 0.0, -850.6)); }
+                    if (debug_view_off > 411.5) { dg = soft_collector_high(vec3<f32>(827.5, 0.0, -854.5)); }
+                    if (debug_view_off > 412.5) { dg = soft_collector(vec3<f32>(819.6, 0.0, -808.4)); }
                     return vec4<f32>(to_scene(vec3<f32>(0.25 * dg)), 1.0);
                 }
             }
@@ -2768,7 +2768,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     }
     // Plants under the night programs: what is lit how (the three programs of the original)
     // (93, and foliage that is not an instance - it has no record: the lamp grid as before)
-    let plant_old = (dbg_view > 92.5 && dbg_view < 93.5) || in.lpos.z >= -9000.0;
+    let plant_old = (debug_view_off > 92.5 && debug_view_off < 93.5) || in.lpos.z >= -9000.0;
     let plant_card_n = mat.mode == 15u && g.tone.w > 0.5 && in.uv1.y > 102.5 && in.uv1.y < 104.5;
     let plant_leaf_n = mat.mode == 15u && g.tone.w > 0.5 && !plant_card_n && in.lpos.z < -9000.0;
     let plant_trunk_n = mat.mode == 9u && g.tone.w > 0.5 && in.uv1.y > 100.5 && in.uv1.y < 102.5 && in.lpos.z < -9000.0 && !plant_old;
@@ -2836,11 +2836,11 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     // SpecularIntensityMax at a glancing angle; its two constants are not carried).
     // Diagnostics 81: all of it as it stood (the walls' sums, the surroundings' map mirrored).
     let tile_out = (mat.mode == 0u || mat.mode == 1u) && in.uv2.x > 2.5 && !int_tile && (u32(round(in.uv2.y)) & 1048576u) == 0u
-        && g.tone.w < 1.5 && g.dome.w > 0.5 && g.ambient_ground.w > -0.5 && !(dbg_view > 80.5 && dbg_view < 81.5);
+        && g.tone.w < 1.5 && g.dome.w > 0.5 && g.ambient_ground.w > -0.5 && !(debug_view_off > 80.5 && debug_view_off < 81.5);
     // (diagnostics 89: the walls' marks - magenta: this outdoor metal form applies; red: a
     // wall marked as metal / tile (uv2.x = 3 + ReflectionIntensity) that it does not apply to -
     // an interior; dark green: a grime wall; dark grey: the other walls)
-    if (dbg_view > 88.5 && dbg_view < 89.5 && (mat.mode == 0u || mat.mode == 1u)) {
+    if (debug_view_off > 88.5 && debug_view_off < 89.5 && (mat.mode == 0u || mat.mode == 1u)) {
         var mk = select(vec3<f32>(0.1), vec3<f32>(0.0, 0.3, 0.0), in.uv2.x > 0.5);
         if (in.uv2.x > 2.5) { mk = select(vec3<f32>(1.0, 0.0, 0.0), vec3<f32>(1.0, 0.0, 1.0), tile_out); }
         return vec4<f32>(to_scene(mk), 1.0);
@@ -2867,14 +2867,14 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
         // (mini sky round: the map itself - sampler 0 of PSCityGrimeMetal is the windows' SkyReflectionSampler;
         // MCLA_DEBUG_VIEW=663 or MCLA_MINISKY_OLD=1: the surroundings' map at the dome's flat layout as before)
         var sky_t = mini_sky(r2_t);
-        if ((dbg_view > 662.5 && dbg_view < 663.5) || textureLoad(t_minisky, vec2<i32>(0, 0), 0).a < 0.5) {
+        if ((debug_view_off > 662.5 && debug_view_off < 663.5) || textureLoad(t_minisky, vec2<i32>(0, 0), 0).a < 0.5) {
             sky_t = env_color(normalize(vec3<f32>(200.0 * rho_t * r2_t.x / rl_t, 163.67 * sqrt(max(1.0 - rho_t * rho_t, 0.0)), 200.0 * rho_t * r2_t.y / rl_t)));
         }
         let m_t = mix(sky_t * ((in.uv2.x - 3.0) * shadow * occ), day_t.rgb, day_t.a);
         tile_spec = m_t * (0.5 * fr_t * fr_t * fr_t * fr_t * (1.0 - second.a * in.color.a));
     }
     // (interior tiles and metal: the program's own mirror term is in `int_spec`; 77: this older one)
-    if (!tile_out && (mat.mode == 0u || mat.mode == 1u) && in.uv2.x > 2.5 && (!int_tile || (dbg_view > 76.5 && dbg_view < 77.5))) {
+    if (!tile_out && (mat.mode == 0u || mat.mode == 1u) && in.uv2.x > 2.5 && (!int_tile || (debug_view_off > 76.5 && debug_view_off < 77.5))) {
         // PSCityGrimeMetal / PSCityTunnelTile: the surroundings mirrored, ReflectionIntensity
         // strong, by (1 - n.v)^4 - only at a glancing angle - and not where grime covers the metal
         let fr = pow(1.0 - clamp(dot(n, v), 0.0, 1.0), 4.0);
@@ -2914,7 +2914,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
         // ground the occluded part is also x the fast collector's sample, 1 at night). Not in
         // the environment map's program. Diagnostics 80: without it, as it stood.
         var baked_hl = in.color1.rgb * (0.3125 * abs(g.ambient_ground.x));
-        if (g.tone.w > 1.5 || (dbg_view > 79.5 && dbg_view < 80.5)) { baked_hl = vec3<f32>(0.0); }
+        if (g.tone.w > 1.5 || (debug_view_off > 79.5 && debug_view_off < 80.5)) { baked_hl = vec3<f32>(0.0); }
         lit = max(lit + mix(vec3<f32>(1.0), base, wall_spec.z) * (wall_spec.y * (hs.g * 2.0 - 1.0)) * (grid_lamps_spec(in.wpos, reflect(-v, n), 2.0 * max(wall_spec.x, 1.0)) + baked_hl), vec3<f32>(0.0));
     }
     if (prop_nb && hs_k != 0u) {
@@ -2931,7 +2931,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
         // vehicles.rs marks their vertices in uv2. MCLA_DEBUG_VIEW 72: all of them as before;
         // 73: without the cars' own-lamp light)
         // (obj.params.w >= 16: a car's body - props and figures share the modes)
-        let cp_on = g.dome.w > 0.5 && g.ambient_ground.w > -0.5 && obj.params.w > 15.5 && !(dbg_view > 71.5 && dbg_view < 72.5);
+        let cp_on = g.dome.w > 0.5 && g.ambient_ground.w > -0.5 && obj.params.w > 15.5 && !(debug_view_off > 71.5 && debug_view_off < 72.5);
         if (mat.mode == 7u && in.uv2.x > 0.5 && cp_on) {
             // PS_BrakeRotor of brushedmetal.fxc (cars/0xb140ff44: brake discs, suspension arms,
             // door and trim metal, some exhaust tips), exact against the program:
@@ -2971,15 +2971,15 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
             // T is the direction u grows in (stored T . dP/du = 0.98 over the blade's triangles, bl_tan.py), w the
             // stored sign (`bflip`). MCLA_DEBUG_VIEW=520: as it stood (the true normal, no map); 521: the
             // twice-turned normal without the map; 522: that normal as a colour; 523 / 524: the map's rgb / alpha; 525: green where the map is bound, red where it is missing.)
-            let cf_old = dbg_view > 519.5 && dbg_view < 520.5;
+            let cf_old = debug_view_off > 519.5 && debug_view_off < 520.5;
             var n_cf = normalize(mat3x3<f32>(normalize(obj.model[0].xyz), normalize(obj.model[1].xyz), normalize(obj.model[2].xyz)) * n);
             if (cf_old) { n_cf = n; }
             var wv_cf = textureSample(t_second, s_diffuse, in.uv0);
-            if (cf_old || (dbg_view > 520.5 && dbg_view < 521.5) || textureDimensions(t_second).x < 8u) { wv_cf = vec4<f32>(0.5, 0.5, 1.0, 0.5); }
-            if (dbg_view > 521.5 && dbg_view < 522.5) { return vec4<f32>(to_scene(n_cf * 0.5 + 0.5), 1.0); }
-            if (dbg_view > 522.5 && dbg_view < 523.5) { return vec4<f32>(to_scene(wv_cf.rgb), 1.0); }
-            if (dbg_view > 523.5 && dbg_view < 524.5) { return vec4<f32>(to_scene(vec3<f32>(wv_cf.a)), 1.0); }
-            if (dbg_view > 524.5 && dbg_view < 525.5) { return vec4<f32>(to_scene(select(vec3<f32>(0.0, 0.8, 0.0), vec3<f32>(0.8, 0.0, 0.0), textureDimensions(t_second).x < 8u)), 1.0); }
+            if (cf_old || (debug_view_off > 520.5 && debug_view_off < 521.5) || textureDimensions(t_second).x < 8u) { wv_cf = vec4<f32>(0.5, 0.5, 1.0, 0.5); }
+            if (debug_view_off > 521.5 && debug_view_off < 522.5) { return vec4<f32>(to_scene(n_cf * 0.5 + 0.5), 1.0); }
+            if (debug_view_off > 522.5 && debug_view_off < 523.5) { return vec4<f32>(to_scene(wv_cf.rgb), 1.0); }
+            if (debug_view_off > 523.5 && debug_view_off < 524.5) { return vec4<f32>(to_scene(vec3<f32>(wv_cf.a)), 1.0); }
+            if (debug_view_off > 524.5 && debug_view_off < 525.5) { return vec4<f32>(to_scene(select(vec3<f32>(0.0, 0.8, 0.0), vec3<f32>(0.8, 0.0, 0.0), textureDimensions(t_second).x < 8u)), 1.0); }
             let cf_t0 = cross(tb_dp2, ng) * tb_duv1.x + cross(ng, tb_dp1) * tb_duv2.x;
             var cf_t = cf_t0 * (inverseSqrt(max(dot(cf_t0, cf_t0), 1e-24)) * select(-1.0, 1.0, dot(cross(tb_dp1, tb_dp2), ng) >= 0.0));
             if (dot(cf_t0, cf_t0) < 1e-24) { cf_t = cf_unit(cross(vec3<f32>(0.0, 1.0, 0.0), n_cf) + vec3<f32>(1e-6, 0.0, 0.0)); }
@@ -3022,7 +3022,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
             base = vec3<f32>(0.0);
             emissive = vec3<f32>(0.0);
             spec_k = 0.0;
-        } else if (mat.mode == 18u && i32(round(in.uv1.x)) < 8 && obj.dents[clamp(i32(round(in.uv1.x)) - 1, 0, 2)].w > 0.5 && g.dome.w > 0.5 && g.ambient_ground.w > -0.5 && !(dbg_view > 134.5 && dbg_view < 135.5)) {
+        } else if (mat.mode == 18u && i32(round(in.uv1.x)) < 8 && obj.dents[clamp(i32(round(in.uv1.x)) - 1, 0, 2)].w > 0.5 && g.dome.w > 0.5 && g.ambient_ground.w > -0.5 && !(debug_view_off > 134.5 && debug_view_off < 135.5)) {
             // VS_Common + PS_Multi of cars/0x9ba9add5 (the rims), read from the listing (LIGHTING_WORK.md,
             // "Rims"): each vertex's zone picks a colour (c206 + zone) and a "material hookup" (c211 + zone):
             //   1: surroundings (sharp, along the mirror ray) x (0.125 + 1.1852 s) x colour^0.45 x occ
@@ -3072,7 +3072,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
             base = vec3<f32>(0.0);
             emissive = vec3<f32>(0.0);
             spec_k = 0.0;
-        } else if (mat.mode == 18u && i32(round(in.uv1.x)) >= 10 && g.dome.w > 0.5 && g.ambient_ground.w > -0.5 && !(dbg_view > 125.5 && dbg_view < 126.5)) {
+        } else if (mat.mode == 18u && i32(round(in.uv1.x)) >= 10 && g.dome.w > 0.5 && g.ambient_ground.w > -0.5 && !(debug_view_off > 125.5 && debug_view_off < 126.5)) {
             // VS_ParallaxRubber2 + PS_ParallaxRubber2_false of cars/0x315a5780 (the tyres), the
             // pixel program run in numpy on hand-made interpolators (work/lighting/l3_tyre3.py):
             //   light = screen(screen(L0, L1) x s, AmbientIntensity (0.75) x ambYPos)
@@ -3102,7 +3102,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
             let amt = hemi * 0.75;
             ltt = ltt + amt - clamp(ltt * amt, vec3<f32>(0.0), vec3<f32>(1.0));
             var wt = in.color.a;
-            if (dbg_view > 126.5 && dbg_view < 127.5) { wt = 1.0; }
+            if (debug_view_off > 126.5 && debug_view_off < 127.5) { wt = 1.0; }
             // (the tyre's dirt, TireDirtColor (0.44, 0.35, 0.25) with .w = its hub's scrape sum: m = normal
             // map alpha x the vertex's dirt (vs_body, VsOut::dmg.x); the colour goes to the dirt by m and the
             // surroundings' share x sat(1 - 6 m) - PS_ParallaxRubber2_false 17 - 24, 84 - 86, in numpy
@@ -3172,7 +3172,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
             let pd9 = u32(round(in.color.a * 255.0));
             // (the texture as stored - the cars' textures are not gamma textures; MCLA_DEBUG_VIEW=103:
             // decoded, as it stood)
-            let tex9 = select(car_raw(albedo.rgb), albedo.rgb, dbg_view > 102.5 && dbg_view < 103.5);
+            let tex9 = select(car_raw(albedo.rgb), albedo.rgb, debug_view_off > 102.5 && debug_view_off < 103.5);
             let col9 = tex9 * vec3<f32>(f32(pa9 & 255u), f32((pa9 >> 8u) & 255u), f32(pb9 & 255u)) / 255.0;
             let e9 = f32((pb9 >> 8u) & 255u) / 32.0;
             let sm9 = f32(pc9 & 255u) / 200.0;
@@ -3192,14 +3192,14 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
             // (x 0.9: the lights' range factor, as in the paint - every car program that takes the two
             // lights has it: VS_BumpSpec, VS_Common, VS_Emissive, VS_Glass, VS_Layout, VS_Plate, and in
             // the pixel programs PS_Light, PS_CarbonFiber, PS_ParallaxRubber2 - work/lighting/carvs_range.py)
-            let att9 = select(0.9, 1.0, dbg_view > 98.5 && dbg_view < 99.5);
+            let att9 = select(0.9, 1.0, debug_view_off > 98.5 && debug_view_off < 99.5);
             let lh9 = (g.sun_color.rgb * (g.sun_dir.w * nls9 * clamp(4.0 * nls9, 0.0, 1.0)) + car_kc() * (nlk9 * clamp(4.0 * nlk9, 0.0, 1.0))) * (q9 * att9);
             let ll9 = g.car_key_col.rgb * (nlc9 * clamp(4.0 * nlc9, 0.0, 1.0) * q9 * att9);
             var lt9 = lh9 + ll9 - clamp(lh9 * ll9, vec3<f32>(0.0), vec3<f32>(1.0));
             let am9 = hemi * occ9;
             lt9 = lt9 + am9 - clamp(lt9 * am9, vec3<f32>(0.0), vec3<f32>(1.0));
             var own9 = car_own_lamps(in.color);
-            if (dbg_view > 72.5 && dbg_view < 73.5) { own9 = vec3<f32>(0.0); }
+            if (debug_view_off > 72.5 && debug_view_off < 73.5) { own9 = vec3<f32>(0.0); }
             lt9 = lt9 + own9 - clamp(lt9 * own9, vec3<f32>(0.0), vec3<f32>(1.0));
             lt9 = lt9 + own9 - clamp(lt9 * own9, vec3<f32>(0.0), vec3<f32>(1.0));
             let dif9 = col9 * lt9;
@@ -3213,7 +3213,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
             let mir9 = env * 0.5 * (vec3<f32>(1.0) + (col9 - vec3<f32>(1.0)) * (m9 * (1.0 - f59))) * occ9;
             lit = mix(lit9, mir9, w9);
             // (74: the own-lamp light alone)
-            if (dbg_view > 73.5 && dbg_view < 74.5) { lit = own9; }
+            if (debug_view_off > 73.5 && debug_view_off < 74.5) { lit = own9; }
             base = vec3<f32>(0.0);
             emissive = vec3<f32>(0.0);
             spec_k = 0.0;
@@ -3293,7 +3293,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
                 // VSAmbientCarPaint / PSAmbientCarPaint of cars/0xdacfb063 instead: the lights take the
                 // occlusion byte as it is, no 0.125 + 0.875 of it; the rest of their rule below.
                 // MCLA_DEBUG_VIEW 698: traffic through the player's CarPaint rule, with the same paint value)
-                let amb6 = obj.lamp_a[0].w > 0.5 && obj.params.w > 15.5 && !(dbg_view > 697.5 && dbg_view < 698.5);
+                let amb6 = obj.lamp_a[0].w > 0.5 && obj.params.w > 15.5 && !(debug_view_off > 697.5 && debug_view_off < 698.5);
                 let aok = select(0.125 + 0.875 * ao_v, ao_v, amb6);
                 // The car's two lights: the hour's light (the sun; from dusk to dawn what the
                 // light track holds - the last of the sun, then a faint grey from below) and the
@@ -3305,7 +3305,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
                 // (VS_CarPaint 82 - 99: each of the two x sat(1 - distance / range), and the game
                 // hands both lights over as points 100 m off the car with a range of 1000 -
                 // gLightPosDir.w, at every hour recorded: 0.9. Diagnostics 99: without, as before.)
-                let att6 = select(0.9, 1.0, dbg_view > 98.5 && dbg_view < 99.5);
+                let att6 = select(0.9, 1.0, debug_view_off > 98.5 && debug_view_off < 99.5);
                 let l_hour = (g.sun_color.rgb * g.sun_dir.w * max(dot(n, g.sun_dir.xyz), 0.0) + car_kc() * max(dot(n, car_kd()), 0.0)) * (ta.x * aok * att6);
                 let l_lamp = g.car_key_col.rgb * max(dot(n, g.car_key.xyz), 0.0) * (ta.x * aok * att6);
                 let lamp_first = g.car_key_col.w > 0.5;
@@ -3318,7 +3318,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
                 // weighed by the occlusion - VS_CarPaint / PS_CarPaint run with the lamp colours
                 // set, work/lighting/paintsi.py; car_own_lamps above. Diagnostics 72 / 73: without.)
                 var own6 = car_own_lamps(in.color);
-                if (dbg_view > 71.5 && dbg_view < 73.5) { own6 = vec3<f32>(0.0); }
+                if (debug_view_off > 71.5 && debug_view_off < 73.5) { own6 = vec3<f32>(0.0); }
                 let light = light_sl + own6 - clamp(light_sl * own6, vec3<f32>(0.0), vec3<f32>(1.0));
                 let dif = base * light;
                 // (tight curves: the mirror blurs and fades to the ambient colour)
@@ -3346,7 +3346,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
                 // player's car under Mirror; PS_CarPaint 111)
                 let m6 = mix(dif, envm, w + obj.fade_min.w);
                 lit = m6 + sp - clamp(m6 * sp, vec3<f32>(0.0), vec3<f32>(1.0));
-                if (dbg_view > 100.5 && dbg_view < 101.5) { lit = m6 + sp; }
+                if (debug_view_off > 100.5 && debug_view_off < 101.5) { lit = m6 + sp; }
                 if (amb6) {
                     // PSAmbientCarPaint (work/trafpaint/dis/amb_carpaint.txt; docs/LIGHTING.md "Traffic paint:
                     // the ambient cars' own program"): no flakes, no vinyl, no two-tone - the paint is the
@@ -3377,12 +3377,12 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
                     lit = lit * (1.0 - rubbed);
                 }
                 // (diagnostics 26 / 27 / 28 / 29: the diffuse, the mirror, the soft specular alone; the soft map itself)
-                if (dbg_view > 25.5 && dbg_view < 26.5) { lit = dif * (1.0 - w); }
-                if (dbg_view > 26.5 && dbg_view < 27.5) { lit = envm * w; }
-                if (dbg_view > 27.5 && dbg_view < 28.5) { lit = sp; }
+                if (debug_view_off > 25.5 && debug_view_off < 26.5) { lit = dif * (1.0 - w); }
+                if (debug_view_off > 26.5 && debug_view_off < 27.5) { lit = envm * w; }
+                if (debug_view_off > 27.5 && debug_view_off < 28.5) { lit = sp; }
                 // (29: the soft map x 4 as a display value; 30: the sharp map x 4 along the mirror ray)
-                if (dbg_view > 28.5 && dbg_view < 29.5) { return vec4<f32>(to_scene(soft * 4.0), 1.0); }
-                if (dbg_view > 29.5 && dbg_view < 30.5) { return vec4<f32>(to_scene(env * 4.0), 1.0); }
+                if (debug_view_off > 28.5 && debug_view_off < 29.5) { return vec4<f32>(to_scene(soft * 4.0), 1.0); }
+                if (debug_view_off > 29.5 && debug_view_off < 30.5) { return vec4<f32>(to_scene(env * 4.0), 1.0); }
                 spec_k = 0.0;
             } else {
             let cell = floor(in.uv0 * tc.y * 220.0);
@@ -3412,7 +3412,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
         } else if (mat.mode == 10u) {
             // rubber and matte black: no mirror in them at all
             lit = lit;
-        } else if (mat.mode == 8u && g.dome.w > 0.5 && g.ambient_ground.w > -0.5 && !(dbg_view > 59.5 && dbg_view < 60.5)) {
+        } else if (mat.mode == 8u && g.dome.w > 0.5 && g.ambient_ground.w > -0.5 && !(debug_view_off > 59.5 && debug_view_off < 60.5)) {
             // PS_Light of carlight.fxc (cars/0xa4f50432: the lamps' reflectors and lit parts,
             // opaque), run in numpy with the captures' constants - work/lighting/lampprobe.py,
             // lampprobe2.py:
@@ -3456,9 +3456,9 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
             else if (lid == 14) { l_on = f32(lst % 4 == 2); }
             let ix = clamp(albedo.rg, vec2<f32>(0.0), vec2<f32>(1.0));
             let illum = select(1.055 * pow(ix, vec2<f32>(1.0 / 2.4)) - vec2<f32>(0.055), ix * 12.92, ix <= vec2<f32>(0.0031308));
-            if (dbg_view > 60.5 && dbg_view < 61.5) { return vec4<f32>(to_scene(vec3<f32>(f32(lid % 3) * 0.5, f32((lid / 3) % 3) * 0.5, f32(lid / 9) * 0.5) + vec3<f32>(0.05)), 1.0); }
-            if (dbg_view > 61.5 && dbg_view < 62.5) { return vec4<f32>(to_scene(vec3<f32>(illum, 0.0)), 1.0); }
-            let att8 = select(0.9, 1.0, dbg_view > 98.5 && dbg_view < 99.5);
+            if (debug_view_off > 60.5 && debug_view_off < 61.5) { return vec4<f32>(to_scene(vec3<f32>(f32(lid % 3) * 0.5, f32((lid / 3) % 3) * 0.5, f32(lid / 9) * 0.5) + vec3<f32>(0.05)), 1.0); }
+            if (debug_view_off > 61.5 && debug_view_off < 62.5) { return vec4<f32>(to_scene(vec3<f32>(illum, 0.0)), 1.0); }
+            let att8 = select(0.9, 1.0, debug_view_off > 98.5 && debug_view_off < 99.5);
             let lh8 = (g.sun_color.rgb * g.sun_dir.w * max(dot(n, g.sun_dir.xyz), 0.0) + car_kc() * max(dot(n, car_kd()), 0.0)) * att8;
             let ll8 = g.car_key_col.rgb * max(dot(n, g.car_key.xyz), 0.0) * att8;
             let l2 = lh8 + ll8 - clamp(lh8 * ll8, vec3<f32>(0.0), vec3<f32>(1.0));
@@ -3478,7 +3478,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
             emissive = vec3<f32>(0.0);
             base = vec3<f32>(0.0);
             spec_k = 0.0;
-        } else if (mat.mode == 12u && in.uv2.x < 0.5 && g.dome.w > 0.5 && g.ambient_ground.w > -0.5 && !(dbg_view > 59.5 && dbg_view < 60.5)) {
+        } else if (mat.mode == 12u && in.uv2.x < 0.5 && g.dome.w > 0.5 && g.ambient_ground.w > -0.5 && !(debug_view_off > 59.5 && debug_view_off < 60.5)) {
             // PS_GlassFront of carglass.fxc (cars/0xddcdc14b, the windows) and PS_Light of
             // bumpedglass.fxc (cars/0x9bc3cca1, the lamps' lenses), run in numpy with the
             // captures' constants - work/lighting/cglassprobe.py, lensprobe.py. One rule:
@@ -3500,11 +3500,11 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
             // (the windows' rows are the car's own m_vWindowTintColorNew: the garage's tint
             // menu writes its darkness, 0.372 + 0.528 k, and colour slot 14 its colour)
             if (!lensg && obj.tint.w > 0.0 && (zone <= 3 || zone == 8)) { tint4 = obj.tint; }
-            if (dbg_view > 60.5 && dbg_view < 61.5) { return vec4<f32>(to_scene(vec3<f32>(f32(zone % 3) * 0.5, f32((zone / 3) % 3) * 0.5, f32(zone / 9) * 0.5 + select(0.0, 0.25, lensg)) + vec3<f32>(0.05)), 1.0); }
+            if (debug_view_off > 60.5 && debug_view_off < 61.5) { return vec4<f32>(to_scene(vec3<f32>(f32(zone % 3) * 0.5, f32((zone / 3) % 3) * 0.5, f32(zone / 9) * 0.5 + select(0.0, 0.25, lensg)) + vec3<f32>(0.05)), 1.0); }
             let nv12 = clamp(abs(dot(n, v)), 0.0, 1.0);
             let fr12 = select(0.125 + 0.725 * pow(1.0 - nv12, 4.5), 0.125 + 0.75 * pow(1.0 - nv12, 5.0), lensg);
             let m12 = clamp(fr12 + 0.25 * max(dot(env, vec3<f32>(0.3, 0.59, 0.11)) - 1.0, 0.0), 0.0, 1.0);
-            let att12 = select(0.9, 1.0, dbg_view > 98.5 && dbg_view < 99.5);
+            let att12 = select(0.9, 1.0, debug_view_off > 98.5 && debug_view_off < 99.5);
             let lh12 = (g.sun_color.rgb * g.sun_dir.w * max(dot(n, g.sun_dir.xyz), 0.0) + car_kc() * max(dot(n, car_kd()), 0.0)) * att12;
             let ll12 = g.car_key_col.rgb * max(dot(n, g.car_key.xyz), 0.0) * att12;
             let l12 = lh12 + ll12 - clamp(lh12 * ll12, vec3<f32>(0.0), vec3<f32>(1.0));
@@ -3526,7 +3526,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
             // Only the panes' inner side is drawn (cull mode 0x19806 against the body's 0x19802; the pipeline
             // `pipeline_glass_inner`, without depth writes), and twice in one frame with the same state - here
             // once with a (2 - a). MCLA_DEBUG_VIEW=730: the outside rule in the driver's view as before.
-            let int12 = (u32(round(obj.params.w)) & 256u) != 0u && !lensg && in.uv2.y < -0.5 && !(dbg_view > 729.5 && dbg_view < 730.5);
+            let int12 = (u32(round(obj.params.w)) & 256u) != 0u && !lensg && in.uv2.y < -0.5 && !(debug_view_off > 729.5 && debug_view_off < 730.5);
             if (int12) {
                 if (dot(in.normal, v) >= 0.0) { discard; }
                 var fci = 127.0 / 255.0;
@@ -3572,7 +3572,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
             // into the door.
             if ((zone == 2 || zone == 3) && !int12 && dot(obj.dents[4].xyz, in.wpos) + obj.dents[4].w < 0.0) { discard; }
             let wz12 = clamp(zone, 0, 3);
-            let ws12 = select(0.0, obj.dents[0][wz12], zone >= 0 && zone <= 3 && in.uv2.y < -0.5 && !int12 && !(dbg_view > 696.5 && dbg_view < 697.5));
+            let ws12 = select(0.0, obj.dents[0][wz12], zone >= 0 && zone <= 3 && in.uv2.y < -0.5 && !int12 && !(debug_view_off > 696.5 && debug_view_off < 697.5));
             if (ws12 > 0.0) {
                 let c12 = clamp(ws12, 0.0, 1.0);
                 let b12 = clamp(ws12 - 1.0, 0.0, 1.0);
@@ -3584,7 +3584,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
                 // (the pane's stored tangent where the window carries it - colour alpha 1, vehicles.rs - else
                 // the one the derivatives give)
                 let ts12 = (obj.model * vec4<f32>(in.color.rgb * 2.0 - 1.0, 0.0)).xyz;
-                let tn = select(tq * inverseSqrt(max(dot(tq, tq), 1e-12)), ts12 * inverseSqrt(max(dot(ts12, ts12), 1e-12)), in.color.a > 0.5 && !(dbg_view > 698.5 && dbg_view < 699.5));
+                let tn = select(tq * inverseSqrt(max(dot(tq, tq), 1e-12)), ts12 * inverseSqrt(max(dot(ts12, ts12), 1e-12)), in.color.a > 0.5 && !(debug_view_off > 698.5 && debug_view_off < 699.5));
                 let bn = cross(tn, n) * ((1.0 - 2.0 * in.bflip) * select(-1.0, 1.0, dot(cross(obj.model[0].xyz, obj.model[1].xyz), obj.model[2].xyz) >= 0.0));
                 let cn = normalize((ck.r * 2.0 - 1.0) * tn + (ck.g * 2.0 - 1.0) * bn + (ck.b * 2.0 - 1.0) * n);
                 var fc12 = 127.0 / 255.0;
@@ -3687,17 +3687,17 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     // (interior roads - tunnels, car parks: MAP_WORK.md pass 7 - keep the interior form set above;
     // the outdoor road programs gave them the sky's ambient and, outside the shadow map's reach, the sun.
     // Diagnostics 66: as before, the outdoor programs on them too.)
-    let road_out0 = !interior_obj || (dbg_view > 65.5 && dbg_view < 66.5);
+    let road_out0 = !interior_obj || (debug_view_off > 65.5 && debug_view_off < 66.5);
     // (not in the cars' map by day - moon_dir.w > 0.5: its road is PSCityRoadEnv, the plain rule set
     // in `light_in` above, where the main view's PSCityRoad has the collector, the highlight and
     // the darkening by wetness. Diagnostics 210: the main view's program there too, as until 2026-10-14)
-    let road_out = road_out0 && !(g.moon_dir.w > 0.5 && g.tone.w < 0.5 && !(dbg_view > 209.5 && dbg_view < 210.5));
-    if (road_out && mat.mode == 4u && g.tone.w > 0.5 && g.tone.w < 1.5 && g.dome.w > 0.5 && (g.key_dir.w < 0.3 || (g.collector.w > 0.5 && !(dbg_view > 63.5 && dbg_view < 64.5))) && g.ambient_ground.w > -0.5 && !(dbg_view > 32.5 && dbg_view < 33.5) && !(dbg_view > 19.5 && dbg_view < 23.5)) {
+    let road_out = road_out0 && !(g.moon_dir.w > 0.5 && g.tone.w < 0.5 && !(debug_view_off > 209.5 && debug_view_off < 210.5));
+    if (road_out && mat.mode == 4u && g.tone.w > 0.5 && g.tone.w < 1.5 && g.dome.w > 0.5 && (g.key_dir.w < 0.3 || (g.collector.w > 0.5 && !(debug_view_off > 63.5 && debug_view_off < 64.5))) && g.ambient_ground.w > -0.5 && !(debug_view_off > 32.5 && debug_view_off < 33.5) && !(debug_view_off > 19.5 && debug_view_off < 23.5)) {
         roadn = true;
         roadn_lamps = head_lamps();
         roadn_cp = cp_light();
         lit = road_night_program(in.wpos, ng, in.color, in.color1, vec4<f32>(in.uv0, in.uv1), in.uv2);
-    } else if (road_out && mat.mode == 4u && g.tone.w < 0.5 && g.dome.w > 0.5 && g.ambient_ground.w > -0.5 && !(dbg_view > 32.5 && dbg_view < 33.5)) {
+    } else if (road_out && mat.mode == 4u && g.tone.w < 0.5 && g.dome.w > 0.5 && g.ambient_ground.w > -0.5 && !(debug_view_off > 32.5 && debug_view_off < 33.5)) {
         // The road by day under the weather's keys, dry or wet: the game's own programs as they
         // are (the older reading of them below stays for the map view and as diagnostics 33)
         lit = road_program(in.wpos, ng, in.color, in.color1.a, vec4<f32>(in.uv0, in.uv1), in.uv2, shadow);
@@ -3719,7 +3719,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
         // still misread. Until the term is measured on the running game the older mix stays:
         // it matches at noon.)
         // (diagnostics 33: without this term)
-        lit = lit + mix(g.sun_color.rgb, base, 0.7) * pow(ndh, 8.0) * clamp(4.0 * nl0, 0.0, 1.0) * strength * g.sun_dir.w * cut * cut * cut * select(1.0, 0.0, dbg_view > 32.5 && dbg_view < 33.5);
+        lit = lit + mix(g.sun_color.rgb, base, 0.7) * pow(ndh, 8.0) * clamp(4.0 * nl0, 0.0, 1.0) * strength * g.sun_dir.w * cut * cut * cut * select(1.0, 0.0, debug_view_off > 32.5 && debug_view_off < 33.5);
         // the road's own darkening by wetness: lit x (1 + w (lit^2 - 1)), w = sat(puddle x r + r / 3)
         // with r = m_RoadReflection (0.0948 in dry weather; the puddle map taken at its middle)
         let w = clamp(0.0948 * 0.5 + 0.0948 / 3.0, 0.0, 1.0);
@@ -3746,7 +3746,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
         // (far, 2026-10-13: world::mark_window also packs 16 x SpecularExponent - see `fc_e3` below)
         let fc_e3 = floor(in.uv2.y / 16.0);
         let fc_y3 = in.uv2.y - 16.0 * fc_e3;
-        let wlod3 = fc_y3 > 7.5 && !(dbg_view > 460.5 && dbg_view < 461.5);
+        let wlod3 = fc_y3 > 7.5 && !(debug_view_off > 460.5 && debug_view_off < 461.5);
         let wy3 = fc_y3 - select(0.0, 8.0, fc_y3 > 7.5);
         let rv = reflect(-v, n);
         let ti = u32(round(in.uv2.x));
@@ -3774,7 +3774,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
             //          + 0.2 x (1.5 - 1.1 n.v) x ReflectSphereNight.dds at (0.5 - 0.9 R.x, 0.5 - 0.47 R.y))
             // - its ReflectionSampler at night is that 512 x 512 picture (the batch's fourth texture),
             // not the live map, and its alpha does nothing. MCLA_DEBUG_VIEW=125: as it stood.
-            if (dbg_view > 124.5 && dbg_view < 125.5) {
+            if (debug_view_off > 124.5 && debug_view_off < 125.5) {
                 lit = lit + glass * tint * (second.rgb * 0.2 * select(0.0, wy3 - select(0.0, 2.0, always), on) + env_color(rv) * 0.03);
             } else {
                 let npic = xgp(textureSampleLevel(t_fourth, s_diffuse, vec2<f32>(0.5 - 0.9 * rv.x, 0.5 - 0.47 * rv.y), 0.0).rgb);
@@ -3791,14 +3791,14 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
             // city's 2,960 CityWindowUpper materials. It is most of the light of a tower's wall high up, where the height
             // fade leaves a quarter: the tower 480 m off at Grand Ave. read 18 13 11 against 27 23 22.
             // MCLA_DEBUG_VIEW=643: without, as before; 644: the term alone.)
-            if (fc_e3 > 0.5 && g.tone.w < 1.5 && !(dbg_view > 642.5 && dbg_view < 643.5)) {
+            if (fc_e3 > 0.5 && g.tone.w < 1.5 && !(debug_view_off > 642.5 && debug_view_off < 643.5)) {
                 var fc_s3 = in.color1.rgb * (0.3125 * abs(g.ambient_ground.x)) + grid_lamps_spec(in.wpos, rv, 2.0 * fc_e3);
                 // (645: the baked light's part alone; 646: the lamps' part alone)
-                if (dbg_view > 644.5 && dbg_view < 645.5) { fc_s3 = in.color1.rgb * (0.3125 * abs(g.ambient_ground.x)); }
-                if (dbg_view > 645.5 && dbg_view < 646.5) { fc_s3 = grid_lamps_spec(in.wpos, rv, 2.0 * fc_e3); }
+                if (debug_view_off > 644.5 && debug_view_off < 645.5) { fc_s3 = in.color1.rgb * (0.3125 * abs(g.ambient_ground.x)); }
+                if (debug_view_off > 645.5 && debug_view_off < 646.5) { fc_s3 = grid_lamps_spec(in.wpos, rv, 2.0 * fc_e3); }
                 let fc_h3 = albedo.a * mix(fc_s3, dot(fc_s3, vec3<f32>(0.2125, 0.7154, 0.0721)) * base, 0.7);
                 lit = lit + fc_h3;
-                if (dbg_view > 643.5 && dbg_view < 644.5) { lit = fc_h3; }
+                if (debug_view_off > 643.5 && debug_view_off < 644.5) { lit = fc_h3; }
             }
         } else if (g.dome.w > 0.5 && g.ambient_ground.w > -0.5) {
             // By day under the weather's keys, PSCityWindowUpper run on numbers
@@ -3815,7 +3815,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
             // 28. Coordinates and weight from the program run on the capture's draw,
             // work/lighting/l3_band.py: 0.36 - 0.264 sat(n.v), back faces 0.36. 125: the cube.)
             var live_w = mini_sky(2.0 * (dot(n, v) + v.y * in.wpos.y * 0.00666667) * n.xz - v.xz);
-            if (dbg_view > 124.5 && dbg_view < 125.5) { live_w = env_color(rv); }
+            if (debug_view_off > 124.5 && debug_view_off < 125.5) { live_w = env_color(rv); }
             // (2026-10-13, coverage item 8 - the office block of Hollywood Blvd., sector 0x7dc489e4 batch 57, draw 2442 of
             // np6_12: PSCityWindowUpper 302948a16bb81a69 with its vertex program on the draw's constants against
             //   (1 - alpha) x (0.6 tint x env x (1.5 - 1.1 sat(n.v)) + 0.4 room) x max(occ x 2 collector, 0.4)
@@ -3825,29 +3825,29 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
             // measured with a zero collector), 2.5 times too dark for a pane the collector calls lit: a sunlit front,
             // and EVERY front beyond the shadows' reach (the collector fades to lit at 82 .. 160 m), turned to the sun
             // or not. The block 200 m off read 50 60 57 against 57 71 72. MCLA_DEBUG_VIEW=595: the floor, as before.)
-            let f3 = select(max(occ * shadow, 0.4), 0.4, dbg_view > 594.5 && dbg_view < 595.5) * 2.5;
+            let f3 = select(max(occ * shadow, 0.4), 0.4, debug_view_off > 594.5 && debug_view_off < 595.5) * 2.5;
             let pane = tint * mix(live_w, wr.rgb, wr.a) * (0.36 - 0.262 * clamp(dot(n, v), 0.0, 1.0)) * f3;
             // (diagnostics 582 - 588, door round: the lit wall under the pane, the pane's term, the picture, its alpha /
             // the diffuse alpha / n.v, the mini sky, the tint, the diffuse as sampled - plain values)
-            if (dbg_view > 581.5 && dbg_view < 588.5) {
+            if (debug_view_off > 581.5 && debug_view_off < 588.5) {
                 var d58 = lit;
-                if (dbg_view > 582.5) { d58 = pane; }
-                if (dbg_view > 583.5) { d58 = wr.rgb; }
-                if (dbg_view > 584.5) { d58 = vec3<f32>(wr.a, albedo.a, clamp(dot(n, v), 0.0, 1.0)); }
-                if (dbg_view > 585.5) { d58 = live_w; }
-                if (dbg_view > 586.5) { d58 = tint; }
-                if (dbg_view > 587.5) { d58 = base; }
+                if (debug_view_off > 582.5) { d58 = pane; }
+                if (debug_view_off > 583.5) { d58 = wr.rgb; }
+                if (debug_view_off > 584.5) { d58 = vec3<f32>(wr.a, albedo.a, clamp(dot(n, v), 0.0, 1.0)); }
+                if (debug_view_off > 585.5) { d58 = live_w; }
+                if (debug_view_off > 586.5) { d58 = tint; }
+                if (debug_view_off > 587.5) { d58 = base; }
                 return vec4<f32>(to_scene(d58), 1.0);
             }
-            lit = mix(lit, pane + room * 0.4 * select(f3 * 0.4, 1.0, dbg_view > 594.5 && dbg_view < 595.5), glass);
+            lit = mix(lit, pane + room * 0.4 * select(f3 * 0.4, 1.0, debug_view_off > 594.5 && debug_view_off < 595.5), glass);
             // (589 - 594: the result / 2, the room, the glass share x 0.4, the diffuse alpha x 0.4, the tint x 0.3, shadow and occlusion x 0.4)
-            if (dbg_view > 588.5 && dbg_view < 594.5) {
+            if (debug_view_off > 588.5 && debug_view_off < 594.5) {
                 var d59 = lit * 0.5;
-                if (dbg_view > 589.5) { d59 = room; }
-                if (dbg_view > 590.5) { d59 = vec3<f32>(glass * 0.4); }
-                if (dbg_view > 591.5) { d59 = vec3<f32>(albedo.a * 0.4); }
-                if (dbg_view > 592.5) { d59 = tint * 0.3; }
-                if (dbg_view > 593.5) { d59 = vec3<f32>(shadow * 0.4, occ * 0.4, in.color1.a * 0.4); }
+                if (debug_view_off > 589.5) { d59 = room; }
+                if (debug_view_off > 590.5) { d59 = vec3<f32>(glass * 0.4); }
+                if (debug_view_off > 591.5) { d59 = vec3<f32>(albedo.a * 0.4); }
+                if (debug_view_off > 592.5) { d59 = tint * 0.3; }
+                if (debug_view_off > 593.5) { d59 = vec3<f32>(shadow * 0.4, occ * 0.4, in.color1.a * 0.4); }
                 return vec4<f32>(to_scene(d59), 1.0);
             }
         } else {
@@ -3876,8 +3876,8 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
             // the normal's y raised by the WORLD height / 15 (instr 5: r4.x = pos.y x 0.0666667 + n.y; 14, 16 - 18),
             // as PSPropGlass has it and the upper windows with / 150. MCLA_DEBUG_VIEW=664: the plain mirrored ray.)
             var r22 = 2.0 * (dot(n, v) + v.y * in.wpos.y * 0.0666667) * n.xz - v.xz;
-            if ((dbg_view > 663.5 && dbg_view < 664.5) || textureLoad(t_minisky, vec2<i32>(0, 0), 0).a < 0.5) { r22 = rv.xz; }
-            if (!(dbg_view > 400.5 && dbg_view < 401.5)) { pane_env = mini_sky(r22); }
+            if ((debug_view_off > 663.5 && debug_view_off < 664.5) || textureLoad(t_minisky, vec2<i32>(0, 0), 0).a < 0.5) { r22 = rv.xz; }
+            if (!(debug_view_off > 400.5 && debug_view_off < 401.5)) { pane_env = mini_sky(r22); }
             let wrs = textureSampleLevel(t_second, s_diffuse, sphere_uv, 0.0);
             let wr = vec4<f32>(xgp(wrs.rgb), wrs.a);
             pane_env = mix(pane_env, wr.rgb, wr.a);
@@ -3892,7 +3892,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
         // times as wide that the sun's shadow hid on clear days and that lay as a grey veil over every
         // shop pane once the storm's / the fog's keys left the fronts unshadowed (left pane +10.8 at
         // stormy noon, +6.3 foggy; +1 clear). MCLA_DEBUG_VIEW=402: as before.
-        if (g.dome.w > 0.5 && g.ambient_ground.w > -0.5 && g.tone.w < 0.5 && !(dbg_view > 401.5 && dbg_view < 402.5)) {
+        if (g.dome.w > 0.5 && g.ambient_ground.w > -0.5 && g.tone.w < 0.5 && !(debug_view_off > 401.5 && debug_view_off < 402.5)) {
             let nl22 = clamp(dot(n, g.sun_dir.xyz), 0.0, 1.0);
             let vr22 = clamp(dot(v, n * (2.0 * nl22) - g.sun_dir.xyz), 0.0, 1.0);
             lit = lit + g.sun_color.rgb * g.sun_dir.w * 0.4 * pow(vr22, 12.0) * clamp(4.0 * nl22, 0.0, 1.0) * (1.0 - albedo.a);
@@ -3920,10 +3920,10 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
             // 0.5 + 0.47 v.y) - not mirrored about the 'up' this renderer puts in a missing normal's place,
             // which read the picture 0.03 lower, on its lit shop row. MCLA_DEBUG_VIEW=331: as before)
             // (world.rs hands a missing normal on as 'up': a shop pane whose normal is straight up is one of these)
-            if ((!(length(in.normal) >= 0.01) || in.normal.y > 0.999) && !(dbg_view > 330.5 && dbg_view < 331.5)) {
+            if ((!(length(in.normal) >= 0.01) || in.normal.y > 0.999) && !(debug_view_off > 330.5 && debug_view_off < 331.5)) {
                 pane_n = xgp(textureSampleLevel(t_third, s_diffuse, vec2<f32>(0.5 + 0.9 * v.x, 0.5 + 0.47 * v.y), 0.0).rgb) * 0.2 + vec3<f32>(0.02);
             }
-            if (dbg_view > 109.5 && dbg_view < 110.5) { pane_n = xgp(textureSampleLevel(t_third, s_diffuse, sphere_uv, 0.0).rgb) * 0.2; }
+            if (debug_view_off > 109.5 && debug_view_off < 110.5) { pane_n = xgp(textureSampleLevel(t_third, s_diffuse, sphere_uv, 0.0).rgb) * 0.2; }
             lit = mix(lit0_glass, pane_n, mix(1.0, in.uv2.x, albedo.a));
             // (2026-10-15, signs: the night pane program d9fbe5f27ae394bc, instructions 22 - 23, 123 - 159 read from
             // capture sg_L23: over that it ADDS the walls' highlight sum S = 0.3125 |w| V + the four lamps'
@@ -3933,7 +3933,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
             // station wall, the shop's light pool on the pavement). world::mark_window: uv2.y = 8 x exponent +
             // mixer. MCLA_DEBUG_VIEW=380: without, as before.)
             let e22 = floor(in.uv2.y) / 8.0;
-            if (e22 > 0.5 && g.tone.w < 1.5 && !(dbg_view > 379.5 && dbg_view < 380.5)) {
+            if (e22 > 0.5 && g.tone.w < 1.5 && !(debug_view_off > 379.5 && debug_view_off < 380.5)) {
                 let s22 = in.color1.rgb * (0.3125 * abs(g.ambient_ground.x)) + grid_lamps_spec(in.wpos, reflect(-v, n), 2.0 * e22);
                 lit = lit + albedo.a * mix(s22, dot(s22, vec3<f32>(0.2125, 0.7154, 0.0721)) * base, fract(in.uv2.y));
             }
@@ -3951,7 +3951,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
         // CityNeon material of the city; the mixer rides in the first colour word (hundredths).
         // Whole program against the closed form: work/lighting/neonhl_verify.py, 5e-14.
         // (Diagnostics 90: without it, as it stood.)
-        if (in.uv2.x > 0.5 && (u32(round(in.uv2.y)) & 4096u) != 0u && g.tone.w < 0.5 && g.dome.w > 0.5 && g.ambient_ground.w > -0.5 && !(dbg_view > 89.5 && dbg_view < 90.5)) {
+        if (in.uv2.x > 0.5 && (u32(round(in.uv2.y)) & 4096u) != 0u && g.tone.w < 0.5 && g.dome.w > 0.5 && g.ambient_ground.w > -0.5 && !(debug_view_off > 89.5 && debug_view_off < 90.5)) {
             let hl_col = select(g.key_col.rgb, g.sun_color.rgb * g.sun_dir.w, g.sun_dir.w > 0.0);
             lit = lit + mix(hl_col, albedo.rgb, round(in.color.b * 255.0) / 100.0) * max(in.neon_hl, 0.0);
         }
@@ -3961,7 +3961,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
         } else if (gy_bill_n) {
             // (a billboard under the night programs - see `gy_bill_n`: the lit part is the night sum above; its own
             // light comes after the fade with height, like the neon signs')
-            if (sign_on && !(dbg_view > 561.5 && dbg_view < 562.5)) {
+            if (sign_on && !(debug_view_off > 561.5 && debug_view_off < 562.5)) {
                 let gy_em = albedo.rgb * second.rgb * (vec3<f32>(0.3) + 0.7 * second.rgb) * sign_gain;
                 if (g.tone.w > 1.5) { lit = lit + gy_em; } else { neon_em = gy_em; }
             }
@@ -3980,10 +3980,10 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
             lit = albedo.rgb * occ * (g.ambient_sky.rgb + l_col * nl_b * shadow) + mix(l_col, albedo.rgb, 0.5) * hl;
             if (sign_on) { lit = lit + albedo.rgb * second.rgb * sign_gain; }
             // (diagnostics 42: n.l, the shadow term it no longer uses, the highlight)
-            if (dbg_view > 41.5 && dbg_view < 42.5) { return vec4<f32>(to_scene(vec3<f32>(nl_b, shadow, hl)), 1.0); }
+            if (debug_view_off > 41.5 && debug_view_off < 42.5) { return vec4<f32>(to_scene(vec3<f32>(nl_b, shadow, hl)), 1.0); }
         } else if (sign_on) {
             // (PSCityBillboard / PSCityNeon: diffuse x neon map x the strength, added as it is)
-            if (g.tone.w > 0.5 && g.dome.w > 0.5 && g.ambient_ground.w > -0.5 && (u32(round(in.uv2.y)) & 4096u) != 0u && !(dbg_view > 46.5 && dbg_view < 47.5)) {
+            if (g.tone.w > 0.5 && g.dome.w > 0.5 && g.ambient_ground.w > -0.5 && (u32(round(in.uv2.y)) & 4096u) != 0u && !(debug_view_off > 46.5 && debug_view_off < 47.5)) {
                 // (diagnostics 47: the straight rule at night as well)
                 // Neon under the night programs (PSMultiLight of city/0x25a6120c with the night
                 // draw's own vertex program, work/lighting/neon2.py): not straight in the map -
@@ -3996,8 +3996,8 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
                 // on 4000 points, 1e-7: the sign's own light is NOT faded with height - it
                 // was, here, with the rest. Diagnostics 83: faded as it stood.)
                 let em_n = albedo.rgb * second.rgb * (vec3<f32>(0.3) + 1.4 * second.rgb) * sign_gain;
-                if (g.tone.w > 1.5 || (dbg_view > 82.5 && dbg_view < 83.5)) { lit = lit + em_n; } else { neon_em = em_n; }
-            } else if (dbg_view > 47.5 && dbg_view < 48.5 && g.tone.w > 0.5 && (u32(round(in.uv2.y)) & 4096u) != 0u) {
+                if (g.tone.w > 1.5 || (debug_view_off > 82.5 && debug_view_off < 83.5)) { lit = lit + em_n; } else { neon_em = em_n; }
+            } else if (debug_view_off > 47.5 && debug_view_off < 48.5 && g.tone.w > 0.5 && (u32(round(in.uv2.y)) & 4096u) != 0u) {
                 // (diagnostics 48: the same curve on the neon map as stored, not gamma-decoded)
                 let mraw = pow(second.rgb, vec3<f32>(1.0 / 2.2));
                 lit = lit + albedo.rgb * mraw * (vec3<f32>(0.3) + 1.4 * mraw) * sign_gain;
@@ -4014,7 +4014,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
             // the lit sign is faded with height FIRST - x H, OcclusionInfo - and the night picture x NightIntensity
             // laid over that by its alpha, unfaded. It was faded with the rest here: the FOOD MART sign, 6 m above
             // the camera, lost a sixth of its light and most of its bloom. MCLA_DEBUG_VIEW=384: as before.)
-            if (night_prog && g.tone.w < 1.5 && !(dbg_view > 383.5 && dbg_view < 384.5)) {
+            if (night_prog && g.tone.w < 1.5 && !(debug_view_off > 383.5 && debug_view_off < 384.5)) {
                 store_n = vec4<f32>(second.rgb * sign_gain, second.a);
             } else {
                 lit = mix(lit, second.rgb * sign_gain, second.a);
@@ -4026,7 +4026,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
         // its doubled sum = (ambient + light x n.l x sun) + 2 x light x (v . r)^8 x sat(4 n.l)
         // x sun - the sky's blue ambient on a glass that faces the ground. Diagnostics 117:
         // the glass texture as before.
-        if (!sign_on && (u32(round(in.uv2.y)) & 8192u) != 0u && !(dbg_view > 116.5 && dbg_view < 117.5)) {
+        if (!sign_on && (u32(round(in.uv2.y)) & 8192u) != 0u && !(debug_view_off > 116.5 && debug_view_off < 117.5)) {
             let lg_day = g.sun_dir.w > 0.0;
             let lg_dir = select(g.key_dir.xyz, g.sun_dir.xyz, lg_day);
             let lg_col = select(g.key_col.rgb, g.sun_color.rgb * g.sun_dir.w, lg_day);
@@ -4120,7 +4120,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     // (so do the outdoor metal / tile form and the terrain's: their head lamps come unoccluded)
     lit = lit + base * local * select(1.0, occ, night_prog && !int_tile && !tile_n && !terr_n);
     // (diagnostics 41: the local lights alone - the player's head lamps under the night programs)
-    if (dbg_view > 40.5 && dbg_view < 41.5) { lit = base * local; }
+    if (debug_view_off > 40.5 && debug_view_off < 41.5) { lit = base * local; }
     if (night_prog) {
         // OcclusionInfo: what lies ABOVE x (the camera's height + 5 m) darkens over 1 / y = 20 m
         // down to z (m_OcclusionFades.y, 0.25 at night) - the upper storeys fade into the night,
@@ -4136,18 +4136,18 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
         // are added beside the baked one (work/lighting/og_neon.py: s / (2E - (2E - 1) s) per
         // lamp as on the walls; the program takes the cell's first THREE lamps, `grid_lamps_spec`
         // all four - as the port's diffuse sum does for the signs). (83, 90: never.)
-        if (mat.mode == 5u && g.tone.w < 1.5 && in.uv2.x > 0.5 && !(dbg_view > 82.5 && dbg_view < 83.5) && !(dbg_view > 89.5 && dbg_view < 90.5)) {
+        if (mat.mode == 5u && g.tone.w < 1.5 && in.uv2.x > 0.5 && !(debug_view_off > 82.5 && debug_view_off < 83.5) && !(debug_view_off > 89.5 && debug_view_off < 90.5)) {
             if ((u32(round(in.uv2.y)) & 4096u) != 0u) {
                 var hl_n = in.color1.rgb * (0.3125 * abs(g.ambient_ground.x)) + grid_lamps_spec(in.wpos, reflect(-v, n), 2.0 * max(round(in.color.r * 255.0), 1.0));
                 // (the first three lamps' highlights, as the diffuse sum above; 333: four)
-                if (!(dbg_view > 332.5 && dbg_view < 333.5)) {
+                if (!(debug_view_off > 332.5 && debug_view_off < 333.5)) {
                     hl_n = in.color1.rgb * (0.3125 * abs(g.ambient_ground.x)) + interior_lamps(in.wpos, n, reflect(-v, n), 2.0 * max(round(in.color.r * 255.0), 1.0), 3)[1] * g.ambient_ground.x;
                 }
-                if (!(dbg_view > 330.5 && dbg_view < 331.5)) { lit = lit + mix(vec3<f32>(1.0), albedo.rgb, round(in.color.b * 255.0) / 100.0) * (round(in.color.g * 255.0) / 100.0) * hl_n; }
+                if (!(debug_view_off > 330.5 && debug_view_off < 331.5)) { lit = lit + mix(vec3<f32>(1.0), albedo.rgb, round(in.color.b * 255.0) / 100.0) * (round(in.color.g * 255.0) / 100.0) * hl_n; }
             }
         }
         // (billboards under the night programs - see `gy_bill_n`: the baked light's and the four lamps' highlights)
-        if (gy_bill_n && g.tone.w < 1.5 && !(dbg_view > 560.5 && dbg_view < 561.5)) {
+        if (gy_bill_n && g.tone.w < 1.5 && !(debug_view_off > 560.5 && debug_view_off < 561.5)) {
             let gy_hl = in.color1.rgb * (0.3125 * abs(g.ambient_ground.x)) + grid_lamps_spec(in.wpos, reflect(-v, n), 50.0);
             lit = lit + mix(vec3<f32>(1.0), albedo.rgb, 0.5) * 0.5 * gy_hl;
         }
@@ -4167,7 +4167,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     // colour x sat(sat(strength / d^2) x sat(dot(to light, axis) / d + bias) x sat(n.l)). The lanes
     // are the walker's own (figlight.rs: the cell's lamps eased in, the head lamps / key light laid
     // over), rows 0..11 of the figure's object, marked in row 0 of the second table. 750: as before.
-    if (mat.mode == 9u && in.uv1.y > 76.5 && in.uv1.y < 77.5 && obj.lamp_b[0].w > 0.5 && !(dbg_view > 749.5 && dbg_view < 750.5)) {
+    if (mat.mode == 9u && in.uv1.y > 76.5 && in.uv1.y < 77.5 && obj.lamp_b[0].w > 0.5 && !(debug_view_off > 749.5 && debug_view_off < 750.5)) {
         var fl = vec3<f32>(0.0);
         for (var k = 0; k < 4; k = k + 1) {
             let lp = obj.lamp_a[3 * k];
@@ -4187,7 +4187,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
         // (VSCityStoreInterior: on = sgt(hour, OnTime) or sgt(OffTime, hour) - at 18:00 sharp the
         // shop is still dark, capture hl_L_18. MCLA_DEBUG_VIEW=129: >= as before)
         let hour = g.sun_color.w;
-        if (hour > 18.0 || hour < 6.0 || (hour == 18.0 && dbg_view > 128.5 && dbg_view < 129.5)) {
+        if (hour > 18.0 || hour < 6.0 || (hour == 18.0 && debug_view_off > 128.5 && debug_view_off < 129.5)) {
             lit = second.rgb * in.color.rgb * 0.8;
             // Under the weather's keys the program as it is (VSCityStoreInterior and its pixel
             // program): the lit-up texture x the vertex colour x 4 - these meshes carry one
@@ -4196,10 +4196,10 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
             // (hour constant overridden: 4.0 - 4.2 in light on the red channel).
             if (g.dome.w > 0.5 && g.ambient_ground.w > -0.5) { lit = second.rgb * in.color1.rgb * 4.0; }
             // (diagnostics 44 / 45: the night colour x 4, the day colour x 4)
-            if (dbg_view > 43.5 && dbg_view < 44.5) { lit = second.rgb * in.color1.rgb * 4.0; }
-            if (dbg_view > 44.5 && dbg_view < 45.5) { lit = second.rgb * in.color.rgb * 4.0; }
+            if (debug_view_off > 43.5 && debug_view_off < 44.5) { lit = second.rgb * in.color1.rgb * 4.0; }
+            if (debug_view_off > 44.5 && debug_view_off < 45.5) { lit = second.rgb * in.color.rgb * 4.0; }
             // (46: the interior black - what the pane in front of it adds)
-            if (dbg_view > 45.5 && dbg_view < 46.5) { lit = vec3<f32>(0.0); }
+            if (debug_view_off > 45.5 && debug_view_off < 46.5) { lit = vec3<f32>(0.0); }
         } else {
             lit = albedo.rgb * 0.25;
         }
@@ -4212,7 +4212,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     // by day and by night. The pedestrian faces are bands of the same alpha (a hand at 22 with a walker at 139, and
     // the other way round). The texture has one level. Here stood a lit material (ambient + sun + a highlight): the
     // visors seen from below shone sky-blue. MCLA_DEBUG_VIEW=540: as before.
-    if (mat.mode == 16u && !(dbg_view > 539.5 && dbg_view < 540.5)) {
+    if (mat.mode == 16u && !(debug_view_off > 539.5 && debug_view_off < 540.5)) {
         let sg_t = textureSampleLevel(t_diffuse, s_diffuse, in.uv0, 0.0);
         let sg_rgb = select(sg_t.rgb, xenos_gamma(sg_t.rgb), vec3<bool>(xenos_gamma_on()));
         let sg_state = i32(round(in.uv1.x));
@@ -4221,7 +4221,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
         let sg_b = vec3<f32>(clamp(0.25 - sg_a, 0.0, 0.25), select(0.0, clamp(0.5 - sg_a, 0.0, 0.25), sg_a >= 0.25), select(0.0, clamp(0.75 - sg_a, 0.0, 0.25), sg_a >= 0.5));
         lit = clamp(sg_rgb * (0.1 + 10.0 * dot(sg_col, sg_b)), vec3<f32>(0.0), vec3<f32>(1.0));
         // (541: the texture's alpha as a grey)
-        if (dbg_view > 540.5 && dbg_view < 541.5) { lit = vec3<f32>(sg_a); }
+        if (debug_view_off > 540.5 && debug_view_off < 541.5) { lit = vec3<f32>(sg_a); }
     }
     // The sea: the game's own programs (water_program above) at every hour, in the main view and the
     // cars' map. (MCLA_WATER_OLD=1, world.rs: the generic blended rule as before; diagnostics 751:
@@ -4234,8 +4234,8 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     // cell's lamps / 4, 223 the bumped normal, 224 the whole before the fog, 225 the base colour, 226 the
     // mesh normal, 227 the lamps' highlight / 4, 228 the specular terms, 230 the baked light x 8,
     // 231 the fog's share, 232 the fog colour x 4)
-    if ((dbg_view > 219.5 && dbg_view < 243.5) || (dbg_view > 299.5 && dbg_view < 302.5) || (dbg_view > 320.5 && dbg_view < 329.5)) {
-        let dk = i32(dbg_view + 0.5);
+    if ((debug_view_off > 219.5 && debug_view_off < 243.5) || (debug_view_off > 299.5 && debug_view_off < 302.5) || (debug_view_off > 320.5 && debug_view_off < 329.5)) {
+        let dk = i32(debug_view_off + 0.5);
         var dv = vec3<f32>(floor(in.clip.x / 50.0) / 32.0);
         if (dk == 221) { dv = vec3<f32>(occ, in.color.a, in.color1.a); }
         if (dk == 222) { dv = grid_lamps(in.wpos, n) * 0.25; }
@@ -4288,9 +4288,9 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     // program writes is stored above 31.875 / 16 = 1.992 a channel; the fog pass and the bloom read
     // that. The port's 16-bit float target kept a lit sign's 5 .. 16 and bloomed it into a halo
     // (the wall lamps of the shop fronts, the poster). Diagnostics 311: no ceiling, as before.
-    if (!(dbg_view > 310.5 && dbg_view < 311.5)) { lit = min(lit, vec3<f32>(1.9921875)); }
+    if (!(debug_view_off > 310.5 && debug_view_off < 311.5)) { lit = min(lit, vec3<f32>(1.9921875)); }
     // (754, water work: no fog at all - beside an override of the original's fog pass, alpha 0)
-    let col = mix(lit, fog_rgb, select(clamp(fg * g.fog_color.a, 0.0, 1.0), 0.0, dbg_view > 753.5 && dbg_view < 754.5));
+    let col = mix(lit, fog_rgb, select(clamp(fg * g.fog_color.a, 0.0, 1.0), 0.0, debug_view_off > 753.5 && debug_view_off < 754.5));
     if (mat.mode != 2u && mat.mode != 12u && mat.mode != 22u) { alpha = 1.0; }
     return vec4<f32>(tonemap(col), alpha);
 }

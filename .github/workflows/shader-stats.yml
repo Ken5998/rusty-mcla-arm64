@@ -62,7 +62,7 @@ jobs:
             timeout 900 tools/shader-stats/target/release/shader-stats "$f" > "out/$n.txt" 2> "out/$n.err" || echo "($n: exit $?)"
             echo "=================== $n"
             tail -1 "out/$n.err"
-            grep -E "prog [0-9]+/[0-9]+:|spill|fill|max_reg|waves|threadsize" "out/$n.err" | sed 's/^MESA: info: //' | sort | uniq | head -40
+            grep -E "FRAG prog 22/1: .*(instr|full|max_waves)" "out/$n.err" | sed 's/^MESA: info: //' | sort | uniq
           done
       - uses: actions/upload-artifact@v4
         if: always()
