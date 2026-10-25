@@ -97,6 +97,12 @@ entry.
   has it, with its saves and logs in the same folder.
 - **Resolution:** 1280x720 is the lightest. Alt+Enter cycles the game between
   a window, borderless and full screen.
+- **Speed on Adreno GPUs:** the city is drawn with one program per
+  material instead of one for all of them, which Turnip's compiler turns
+  into a program four to eight times shorter. They are built in the
+  background the first few minutes of play (the game is slower until
+  then) and kept by Mesa's shader cache for the next start.
+  `MCLA_CITY_SPEC=0` draws as upstream does.
 - **Overlay flicker:** if MangoHud or the Steam overlay flicker over the game
   on the Retroid Pocket 6, the launcher's **Turn it off** button adds the
   kernel option `msm.enable_preemption=0` (undo with
@@ -107,7 +113,7 @@ entry.
 | Path | What it does |
 | --- | --- |
 | `upstream.json` | The Rusty MCLA commit the build is made from, and the Rust version. |
-| `patches/` | Changes to Rusty MCLA for ARM64 Linux: SDL (used only for game pads) builds without X11 or Wayland. |
+| `patches/` | Changes to Rusty MCLA for ARM64 Linux: SDL (used only for game pads) builds without X11 or Wayland; GPU time per render pass (`MCLA_GPU_TIMES=1`); the city's programs built once per material, which Adreno GPUs need (see Playing). |
 | `scripts/build-game.sh [OUT]` | Builds `mcla` (the game), `mcla-tool` (its install tool) and `steam-art`, and packs them with the patched source for a release. |
 | `scripts/install.sh DISC\|- [DIR]` | Downloads the game build and ffmpeg ([BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds), checked against its SHA-256), builds the game data with `mcla-tool install`, writes the settings and `game/mcla.sh`, and draws the artwork. |
 | `scripts/configure.py` | Sets keys of the game's `settings.toml`, keeping the rest. |
