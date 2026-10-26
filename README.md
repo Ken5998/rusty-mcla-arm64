@@ -19,7 +19,7 @@ checks in Fedora 44 (the base of ArmadaOS) that it finds every library, opens
 a Vulkan window and that a real install gets ffmpeg with the Xbox audio
 decoders. Expect the bugs upstream lists, and report ARM64-only ones here.
 
-This repository holds scripts, six patches and the launcher. Releases carry the
+This repository holds scripts, seven patches and the launcher. Releases carry the
 ARM64 build of the game (GPL-3.0, with its source), never any game data: the
 game data is built on the handheld from your disc, and none may be published
 here.
@@ -134,7 +134,7 @@ entry.
 | Path | What it does |
 | --- | --- |
 | `upstream.json` | The Rusty MCLA commit the build is made from, and the Rust version. |
-| `patches/` | Changes to Rusty MCLA for ARM64 Linux: SDL (used only for game pads) builds without X11 or Wayland; the city's programs built once per material, which Adreno GPUs need, those drawn before built at start; frames prepared while the GPU draws; an optional shorter sound buffer (see Playing); game logs that stop growing at 64 MB; the pad's A answers the prompts over the drive (save boxes, tutorials) as Enter does. |
+| `patches/` | Changes to Rusty MCLA for ARM64 Linux: SDL (used only for game pads) builds without X11 or Wayland; the city's programs built once per material, which Adreno GPUs need, those drawn before built at start; frames prepared while the GPU draws; an optional shorter sound buffer (see Playing); game logs that stop growing at 64 MB; the pad's A answers the prompts over the drive (save boxes, tutorials) as Enter does; the 3-2-1-GO shows in a series' later races too. |
 | `scripts/build-game.sh [OUT]` | Builds `mcla` (the game), `mcla-tool` (its install tool) and `steam-art`, and packs them with the patched source for a release. |
 | `scripts/install.sh DISC\|- [DIR]` | Downloads the game build and ffmpeg ([BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds), checked against its SHA-256), builds the game data with `mcla-tool install`, writes the settings and `game/mcla.sh`, and with `MCLA_ARTWORK=1` draws the artwork. |
 | `scripts/configure.py` | Sets keys of the game's `settings.toml`, keeping the rest. |
