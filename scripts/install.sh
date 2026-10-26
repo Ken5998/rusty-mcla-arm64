@@ -181,6 +181,9 @@ cat > "$game/mcla.sh.tmp" <<EOF
 # Written by rusty-mcla-arm64's scripts/install.sh; run it again to change anything.
 dir='$dir'
 cd "\$dir/game"
+# Turnip's UBWC compression makes gamescope's overlays (MangoHud, Steam's menus) flicker in square tiles over
+# this game, and off it costs next to nothing here. MCLA_UBWC=1 keeps it.
+[ "\${MCLA_UBWC:-0}" = 1 ] || export TU_DEBUG="\${TU_DEBUG:+\$TU_DEBUG,}noubwc"
 exec "\$dir/build/bin/mcla" --data "\$dir/data/cache" "\$@"
 EOF
 chmod +x "$game/mcla.sh.tmp"

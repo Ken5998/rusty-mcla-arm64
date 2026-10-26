@@ -1,9 +1,9 @@
-From 25cb7ab5ae970990054b4f6fc6a439c4b635ea0c Mon Sep 17 00:00:00 2001
+From ce68e53786cf369d5a4e4b040208faa22a288063 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Kenan=20Kasumovi=C4=87?=
  <46025606+Ken5998@users.noreply.github.com>
 Date: Sun, 25 Oct 2026 17:17:12 +0000
-Subject: [PATCH] feat(audio): MCLA_AUDIO_BUFFER, an output buffer of a chosen
- size
+Subject: [PATCH 4/5] feat(audio): MCLA_AUDIO_BUFFER, an output buffer of a
+ chosen size
 
 rodio's own stream asks ALSA for a 100 ms buffer. MCLA_AUDIO_BUFFER=<frames>
 plays rodio's mixer through a cpal stream of the game's own with that
@@ -12,21 +12,21 @@ or one that refuses the size falls back to rodio's stream. Off by
 default: on the Retroid Pocket 6 through PipeWire a 1024-frame stream
 opened without error and played nothing.
 ---
- mcla-rs/crates/game/src/audio.rs | 77 +++++++++++++++++++++++++++-----
- 1 file changed, 66 insertions(+), 11 deletions(-)
+ mcla-rs/crates/game/src/audio.rs | 85 +++++++++++++++++++++++++++-----
+ 1 file changed, 74 insertions(+), 11 deletions(-)
 
 diff --git a/mcla-rs/crates/game/src/audio.rs b/mcla-rs/crates/game/src/audio.rs
-index 7e66e34..28acd09 100644
+index 7e66e34..d2f2401 100644
 --- a/mcla-rs/crates/game/src/audio.rs
 +++ b/mcla-rs/crates/game/src/audio.rs
-@@ -16,6 +16,63 @@ use std::time::Duration;
+@@ -16,6 +16,71 @@ use std::time::Duration;
  const RATE: u32 = 44100;
  const TAB: char = '\u{9}';
  
-+/// The sound card: rodio's mixer played through a cpal stream of the game's own, whose buffer is short
-+/// (rodio's own stream asks ALSA for 100 ms; through PipeWire the engine and the cars passing by were
-+/// heard late on Linux). MCLA_AUDIO_BUFFER=<frames> sets it (default 1024, about 21 ms at 48 kHz);
-+/// 0, or a device that refuses it, takes rodio's stream as upstream.
++/// The sound card: rodio's own stream (it asks ALSA for 100 ms), or with MCLA_AUDIO_BUFFER=<frames>
++/// rodio's mixer played through a cpal stream of the game's own with that buffer, for a shorter delay
++/// (a device that refuses it takes rodio's stream). Not the default: on the Retroid Pocket 6 through
++/// PipeWire a 1024-frame stream opened without error and played nothing.
 +#[allow(dead_code)] // (the streams are held only to keep them playing)
 +enum Out {
 +    Rodio(OutputStream, OutputStreamHandle),
@@ -35,7 +35,7 @@ index 7e66e34..28acd09 100644
 +
 +impl Out {
 +    fn open() -> Option<Out> {
-+        let frames = std::env::var("MCLA_AUDIO_BUFFER").ok().and_then(|v| v.trim().parse::<u32>().ok()).unwrap_or(1024);
++        let frames = std::env::var("MCLA_AUDIO_BUFFER").ok().and_then(|v| v.trim().parse::<u32>().ok()).unwrap_or(0);
 +        if frames > 0 {
 +            match Self::own(frames) {
 +                Ok(out) => return Some(out),
@@ -61,7 +61,15 @@ index 7e66e34..28acd09 100644
 +        let config = rodio::cpal::StreamConfig { channels: def.channels(), sample_rate: def.sample_rate(), buffer_size: rodio::cpal::BufferSize::Fixed(frames) };
 +        let (mixer, mut rx) = rodio::dynamic_mixer::mixer::<f32>(config.channels, config.sample_rate.0);
 +        let stream = device
-+            .build_output_stream::<f32, _, _>(&config, move |data, _| data.iter_mut().for_each(|d| *d = rx.next().unwrap_or(0.0)), |e| log::warn!("audio: output stream: {e}"), None)
++            .build_output_stream::<f32, _, _>(&config, move |data, _| data.iter_mut().for_each(|d| *d = rx.next().unwrap_or(0.0)), {
++                // (said once: a stream that fails keeps failing on every period)
++                let said = std::sync::atomic::AtomicBool::new(false);
++                move |e| {
++                    if !said.swap(true, std::sync::atomic::Ordering::Relaxed) {
++                        log::warn!("audio: output stream: {e} (further errors not logged)");
++                    }
++                }
++            }, None)
 +            .map_err(|e| e.to_string())?;
 +        stream.play().map_err(|e| e.to_string())?;
 +        log::info!("audio: output {} Hz, {} channels, buffer {frames} frames ({:.0} ms)", config.sample_rate.0, config.channels, frames as f32 * 1000.0 / config.sample_rate.0 as f32);
@@ -83,7 +91,7 @@ index 7e66e34..28acd09 100644
  /// Decoded PCM: mono, or interleaved stereo (folded streams).
  pub struct Clip {
      pub data: Vec<f32>,
-@@ -263,8 +320,7 @@ struct EngineBank {
+@@ -263,8 +328,7 @@ struct EngineBank {
  }
  
  pub struct Audio {
@@ -93,7 +101,7 @@ index 7e66e34..28acd09 100644
      _sink: Option<Sink>,
      /// offline rendering (tests): the mix is pulled by the game loop and kept here
      offline: Option<(MixSource, Vec<f32>)>,
-@@ -356,14 +412,14 @@ impl Audio {
+@@ -356,14 +420,14 @@ impl Audio {
      fn create(data_dir: &str, offline: bool) -> Option<Audio> {
          let mixer = Arc::new(Mutex::new(Mixer { voices: Vec::new(), master: 0.9, slow: None }));
          let src = MixSource { mixer: mixer.clone(), buf: Vec::new(), at: 0 };
@@ -113,7 +121,7 @@ index 7e66e34..28acd09 100644
          };
          // <data>/../audio_pc  (data = .../extracted/cache)
          let root = Path::new(data_dir).parent().map(|p| p.join("audio_pc")).unwrap_or_else(|| PathBuf::from("audio_pc"));
-@@ -379,7 +435,6 @@ impl Audio {
+@@ -379,7 +443,6 @@ impl Audio {
          log::info!("audio: bank root {} ({}), {} music tracks", root.display(), if available { "ok" } else { "missing" }, music_files.len());
          let seed = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.subsec_nanos()).unwrap_or(7) | 1;
          Some(Audio {
@@ -121,7 +129,7 @@ index 7e66e34..28acd09 100644
              handle,
              _sink: sink,
              offline: off,
-@@ -806,7 +861,7 @@ impl Audio {
+@@ -806,7 +869,7 @@ impl Audio {
          let Some(p) = want else { return };
          let Ok(f) = std::fs::File::open(&p) else { return };
          let Ok(dec) = rodio::Decoder::new(std::io::BufReader::new(f)) else { return };
@@ -130,7 +138,7 @@ index 7e66e34..28acd09 100644
              s.set_volume(volume);
              s.append(dec.repeat_infinite());
              s.play();
-@@ -839,7 +894,7 @@ impl Audio {
+@@ -839,7 +902,7 @@ impl Audio {
          let (Some(handle), Some(rel)) = (self.handle.as_ref(), rel) else { return };
          let Ok(f) = std::fs::File::open(self.root.join(rel)) else { return };
          let Ok(dec) = rodio::Decoder::new(std::io::BufReader::new(f)) else { return };
@@ -139,7 +147,7 @@ index 7e66e34..28acd09 100644
              s.set_volume(volume);
              s.append(dec.skip_duration(Duration::from_secs_f32(at.max(0.0))));
              s.play();
-@@ -1002,7 +1057,7 @@ impl Audio {
+@@ -1002,7 +1065,7 @@ impl Audio {
              old.stop();
          }
          let Some(handle) = self.handle.as_ref() else { return };
@@ -148,6 +156,3 @@ index 7e66e34..28acd09 100644
              self.music_gain = Self::stream_gain(&p);
              s.set_volume(self.music_volume * self.music_gain);
              s.append(dec);
--- 
-2.43.0
-

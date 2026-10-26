@@ -1,0 +1,57 @@
+From 4cd3cf352c63044997612d2da35d11161ca19ac5 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Kenan=20Kasumovi=C4=87?=
+ <46025606+Ken5998@users.noreply.github.com>
+Date: Mon, 26 Oct 2026 16:34:34 +0000
+Subject: [PATCH 5/5] fix(log): a game log stops growing at 64 MB
+
+A message repeated every frame filled 9-12 GB log files on the RP6.
+stderr still gets every line.
+---
+ mcla-rs/crates/game/src/hooks.rs | 18 +++++++++++++++---
+ 1 file changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/mcla-rs/crates/game/src/hooks.rs b/mcla-rs/crates/game/src/hooks.rs
+index 1e38105..7662f7a 100644
+--- a/mcla-rs/crates/game/src/hooks.rs
++++ b/mcla-rs/crates/game/src/hooks.rs
+@@ -23,6 +23,9 @@ use std::time::{Duration, Instant};
+ 
+ /// How many game logs and crash reports are kept.
+ const KEEP: usize = 10;
++/// A game log stops growing at this size (stderr still gets everything), so a message repeated every frame cannot
++/// fill the disk.
++const LOG_FILE_MAX: u64 = 64 << 20;
+ /// How many log lines a crash report carries.
+ const TAIL_LINES: usize = 50;
+ /// The developer's old extraction folder, used only when nothing next to the exe exists.
+@@ -144,9 +147,11 @@ struct LogState {
+     tail: VecDeque<String>,
+     partial: String,
+     path: Option<PathBuf>,
++    /// bytes written to the file so far
++    written: u64,
+ }
+ 
+-static LOG: Mutex<LogState> = Mutex::new(LogState { file: None, pre: Vec::new(), tail: VecDeque::new(), partial: String::new(), path: None });
++static LOG: Mutex<LogState> = Mutex::new(LogState { file: None, pre: Vec::new(), tail: VecDeque::new(), partial: String::new(), path: None, written: 0 });
+ 
+ /// The writer env_logger is given: stderr as before, plus the file once [`start_file_log`] has opened it.
+ struct Tee;
+@@ -165,8 +170,15 @@ impl Write for Tee {
+                 }
+             }
+             if st.file.is_some() {
+-                if let Some(f) = st.file.as_mut() {
+-                    let _ = f.write_all(buf);
++                if st.written < LOG_FILE_MAX {
++                    st.written += buf.len() as u64;
++                    let full = st.written >= LOG_FILE_MAX;
++                    if let Some(f) = st.file.as_mut() {
++                        let _ = f.write_all(buf);
++                        if full {
++                            let _ = writeln!(f, "(log file reached {} MB, the rest goes to stderr only)", LOG_FILE_MAX >> 20);
++                        }
++                    }
+                 }
+             } else if st.pre.len() < 1 << 20 {
+                 st.pre.extend_from_slice(buf);

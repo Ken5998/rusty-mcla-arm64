@@ -28,7 +28,7 @@ case "$1" in
     *) exit 2 ;;
 esac
 TOOL
-printf '#!/usr/bin/env bash\necho "mcla $*"\n' > "$game/bin/mcla"
+printf '#!/usr/bin/env bash\necho "mcla $*"\necho "TU_DEBUG=$TU_DEBUG" >&2\n' > "$game/bin/mcla"
 cat > "$game/bin/steam-art" <<'ART'
 #!/usr/bin/env bash
 out="$1"; shift
@@ -67,6 +67,11 @@ grep -qx 'resolution = "1280x720"' "$settings" && grep -qx 'window_mode = "windo
 ok "the settings are 1280x720, windowed, 60 fps, no anti-aliasing and point at the data"
 [ "$("$dir/game/mcla.sh" --x)" = "mcla --data $dir/data/cache --x" ] || fail "mcla.sh starts the game with its data"
 ok "mcla.sh starts the game with its data"
+[ "$(env -u TU_DEBUG "$dir/game/mcla.sh" 2>&1 >/dev/null)" = "TU_DEBUG=noubwc" ] &&
+    [ "$(TU_DEBUG=perf "$dir/game/mcla.sh" 2>&1 >/dev/null)" = "TU_DEBUG=perf,noubwc" ] &&
+    [ "$(env -u TU_DEBUG MCLA_UBWC=1 "$dir/game/mcla.sh" 2>&1 >/dev/null)" = "TU_DEBUG=" ] ||
+    fail "mcla.sh turns UBWC off unless MCLA_UBWC=1"
+ok "mcla.sh turns UBWC off unless MCLA_UBWC=1"
 [ -z "$(ls "$dir/artwork"/*.png 2>/dev/null)" ] || fail "no artwork unless asked"
 grid="$work/home/.local/share/Steam/userdata/7/config/grid"
 grep -qF "/game/mcla.sh" "$work/home/.local/share/Steam/userdata/7/config/shortcuts.vdf" && [ -z "$(ls "$grid" 2>/dev/null)" ] ||
