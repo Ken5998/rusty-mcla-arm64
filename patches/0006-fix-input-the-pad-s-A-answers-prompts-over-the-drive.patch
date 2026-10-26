@@ -1,0 +1,27 @@
+From 70834e3fe9cfa8ad599f56e7d3f7b27f128e983d Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Kenan=20Kasumovi=C4=87?=
+ <46025606+Ken5998@users.noreply.github.com>
+Date: Mon, 26 Oct 2026 16:59:57 +0000
+Subject: [PATCH] fix(input): the pad's A answers prompts over the drive
+
+Outside the menus A only reached the driving actions, so a new career's
+save boxes, message boxes and a tutorial's CONTINUE took only the
+keyboard's Enter. A now sets the same accept as Enter there too.
+---
+ mcla-rs/crates/game/src/main.rs | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/mcla-rs/crates/game/src/main.rs b/mcla-rs/crates/game/src/main.rs
+index 02b22ba..737626d 100644
+--- a/mcla-rs/crates/game/src/main.rs
++++ b/mcla-rs/crates/game/src/main.rs
+@@ -1924,6 +1924,9 @@ impl App {
+             self.game.nav_map |= p(6) && self.game.show_map;
+             return;
+         }
++        // (A answers what stands over the drive as the keyboard's Enter does: a new career's save boxes, a
++        // message box, a tutorial's CONTINUE, a story caption. Without it only Enter got past them.)
++        self.game.nav_enter |= p(0);
+         // (the active controller map, `mc4`: the driving buttons are its actions. START and BACK
+         // stay what they are - the original's editor cannot give them away.)
+         let slots = self.game.mc4_controls(self.hyd_on && self.game.hydraulics);
