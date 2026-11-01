@@ -1,7 +1,7 @@
 {
   "repository": "https://github.com/holdmysocks/rusty-mcla",
-  "commit": "e3fb874d52f21ac7653c4c09824dcfe4e6b6ea16",
-  "version": "0.6.1",
+  "commit": "e451f2effbe406cb28d32e28812548effbf5c19c",
+  "version": "0.9.6",
   "rust": "1.99.0",
-  "verified_utc": "2026-10-25T00:00:00Z"
+  "verified_utc": "2026-11-01T00:00:00Z"
 }

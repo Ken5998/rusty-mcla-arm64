@@ -19,7 +19,7 @@ checks in Fedora 44 (the base of ArmadaOS) that it finds every library, opens
 a Vulkan window and that a real install gets ffmpeg with the Xbox audio
 decoders. Expect the bugs upstream lists, and report ARM64-only ones here.
 
-This repository holds scripts, seven patches and the launcher. Releases carry the
+This repository holds scripts, six patches and the launcher. Releases carry the
 ARM64 build of the game (GPL-3.0, with its source), never any game data: the
 game data is built on the handheld from your disc, and none may be published
 here.
@@ -104,10 +104,6 @@ entry.
   the window's size. 1920x1080 at 67 % costs about what 1280x720 does, with
   a sharp HUD. Shadows (OPTIONS > PERFORMANCE) are the next most costly thing
   on the Adreno.
-- **Sound:** the game plays through rodio's own output (about 100 ms of
-  buffer). `MCLA_AUDIO_BUFFER=<frames>` (for example 1024) opens a shorter
-  stream instead; on the RP6 a 1024-frame stream through PipeWire stayed
-  silent, so it is off by default.
 - **Resolution:** 1280x720 is the lightest. Alt+Enter cycles the game between
   a window, borderless and full screen.
 - **Speed on Adreno GPUs:** the city is drawn with one program per
@@ -134,9 +130,10 @@ entry.
 | Path | What it does |
 | --- | --- |
 | `upstream.json` | The Rusty MCLA commit the build is made from, and the Rust version. |
-| `patches/` | Changes to Rusty MCLA for ARM64 Linux: SDL (used only for game pads) builds without X11 or Wayland; the city's programs built once per material, which Adreno GPUs need, those drawn before built at start; frames prepared while the GPU draws; an optional shorter sound buffer (see Playing); game logs that stop growing at 64 MB; the pad's A answers the prompts over the drive (save boxes, tutorials) as Enter does; the 3-2-1-GO shows in a series' later races too. |
+| `patches/` | Changes to Rusty MCLA for ARM64 Linux: SDL (used only for game pads) builds without X11 or Wayland; the city's programs built once per material, which Adreno GPUs need, those drawn before built at start; frames prepared while the GPU draws; game logs that stop growing at 64 MB; the pad's A answers the prompts over the drive (save boxes, tutorials) as Enter does; the 3-2-1-GO shows in a series' later races too. |
 | `scripts/build-game.sh [OUT]` | Builds `mcla` (the game), `mcla-tool` (its install tool) and `steam-art`, and packs them with the patched source for a release. |
 | `scripts/install.sh DISC\|- [DIR]` | Downloads the game build and ffmpeg ([BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds), checked against its SHA-256), builds the game data with `mcla-tool install`, writes the settings and `game/mcla.sh`, and with `MCLA_ARTWORK=1` draws the artwork. |
+| `scripts/rebase-upstream.sh TAG` | Moves `patches/` onto a newer Rusty MCLA release and records it in `upstream.json`; stops and names the patch when one no longer applies. |
 | `scripts/configure.py` | Sets keys of the game's `settings.toml`, keeping the rest. |
 | `scripts/artwork.sh [DIR]`, `tools/steam-art/` | The game's screenshots and the artwork drawn over them. |
 | `scripts/add-to-steam.sh [DIR]` | Adds the game to Steam (`scripts/add-to-steam.py` writes the entry; images already in Steam are kept). |
@@ -144,6 +141,7 @@ entry.
 | `tests/` | The install with a stand-in game build, and the Steam entry against a made-up Steam folder. |
 | `.github/workflows/ci.yml` | The ARM64 build, its checks in Fedora 44 and the launcher, on ARM64 runners. |
 | `.github/workflows/release.yml` | Publishes the launcher, the game build and its source as a release. |
+| `.github/workflows/upstream-check.yml` | Every Monday: on a new Rusty MCLA release, rebases the patches, raises the launcher's version, runs the CI on `ci/upstream-vX.Y.Z` and, when green, merges into main and publishes the release; otherwise it opens an issue. |
 
 ## License
 

@@ -1,8 +1,8 @@
-From 7f2c2c80f7e508cfd8224c1e858747bbbff88a03 Mon Sep 17 00:00:00 2001
+From 19f205c018e3d60337a7b70fe2427289787bd954 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Kenan=20Kasumovi=C4=87?=
  <46025606+Ken5998@users.noreply.github.com>
 Date: Sun, 25 Oct 2026 16:28:02 +0000
-Subject: [PATCH 3/3] perf: let the CPU prepare the next frame while the GPU
+Subject: [PATCH 3/6] perf: let the CPU prepare the next frame while the GPU
  draws
 
 On Wayland, pre_present_notify makes winit hold the next RedrawRequested
@@ -15,13 +15,13 @@ swapchain paces the frames); MCLA_PRESENT_NOTIFY=1 restores it.
  1 file changed, 8 insertions(+), 1 deletion(-)
 
 diff --git a/mcla-rs/crates/game/src/main.rs b/mcla-rs/crates/game/src/main.rs
-index 398b3f2..02b22ba 100644
+index c8ea543..9b1e880 100644
 --- a/mcla-rs/crates/game/src/main.rs
 +++ b/mcla-rs/crates/game/src/main.rs
-@@ -9365,7 +9365,14 @@ log::info!("stuck2: car {} {} grounded {} up.y {:.2} speed {:.2} rpm {:.0} veh {
-         passprof::end();
+@@ -10190,7 +10190,14 @@ log::info!("stuck2: car {} {} grounded {} up.y {:.2} speed {:.2} rpm {:.0} veh {
          let t_enc = now.elapsed().as_secs_f32() * 1000.0;
          gpu.queue.submit(early_cbs.into_iter().chain([enc.finish()]));
+         gpuprof::after_submit();
 -        window.pre_present_notify();
 +        // (On Wayland this makes winit hold the next RedrawRequested until the compositor's frame
 +        // callback, which comes only once the GPU has finished this frame and the compositor has

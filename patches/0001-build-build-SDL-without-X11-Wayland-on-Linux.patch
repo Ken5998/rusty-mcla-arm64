@@ -1,8 +1,8 @@
-From f1929db268300c5a2221f0798a91b2caa724ff07 Mon Sep 17 00:00:00 2001
+From 850d35f62d6ff4cb078e51b1a7c9c9cfc66e0629 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Kenan=20Kasumovi=C4=87?=
  <46025606+Ken5998@users.noreply.github.com>
 Date: Wed, 21 Oct 2026 19:46:06 +0000
-Subject: [PATCH 1/3] build: build SDL without X11/Wayland on Linux
+Subject: [PATCH 1/6] build: build SDL without X11/Wayland on Linux
 
 SDL is only used for game pads here (winit opens the window), but its
 CMake build refuses to configure on Linux without the X11 or Wayland
@@ -12,13 +12,13 @@ development files. A Unix console build needs neither.
  1 file changed, 4 insertions(+)
 
 diff --git a/mcla-rs/crates/game/Cargo.toml b/mcla-rs/crates/game/Cargo.toml
-index 1973fe3..59242cb 100644
+index 018939d..0d5a673 100644
 --- a/mcla-rs/crates/game/Cargo.toml
 +++ b/mcla-rs/crates/game/Cargo.toml
-@@ -35,3 +35,7 @@ egui-winit = { version = "0.31", default-features = false, features = ["links"]
- sdl3-sys = { version = "0.7", default-features = false, features = ["build-from-source-static", "no-default-subsystems", "sdl-joystick", "sdl-audio", "sdl-haptic", "sdl-hidapi", "sdl-sensor"] }
- png = "0.17"
- rodio = { version = "0.20", default-features = false, features = ["symphonia-all"] }
+@@ -39,3 +39,7 @@ rodio = { version = "0.20", default-features = false, features = ["symphonia-all
+ # (the message box when no graphics device can be made - hooks::gpu_init_failed, GitHub #16)
+ [target.'cfg(windows)'.dependencies]
+ windows-sys = { version = "0.59", features = ["Win32_UI_WindowsAndMessaging"] }
 +
 +# Linux: SDL is only used for game pads here (winit opens the window), so build it without X11/Wayland
 +[target.'cfg(target_os = "linux")'.dependencies]

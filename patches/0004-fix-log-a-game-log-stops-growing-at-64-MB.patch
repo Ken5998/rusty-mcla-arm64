@@ -1,0 +1,63 @@
+From f2a702b3a798b7f31261cf9115874f2cb24b80b7 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Kenan=20Kasumovi=C4=87?=
+ <46025606+Ken5998@users.noreply.github.com>
+Date: Mon, 26 Oct 2026 16:34:34 +0000
+Subject: [PATCH 4/6] fix(log): a game log stops growing at 64 MB
+
+A message repeated every frame filled 9-12 GB log files on the RP6.
+stderr still gets every line.
+---
+ mcla-rs/crates/game/src/hooks.rs | 17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/mcla-rs/crates/game/src/hooks.rs b/mcla-rs/crates/game/src/hooks.rs
+index cb29c89..057c412 100644
+--- a/mcla-rs/crates/game/src/hooks.rs
++++ b/mcla-rs/crates/game/src/hooks.rs
+@@ -26,6 +26,9 @@ use std::time::{Duration, Instant};
+ const KEEP: usize = 10;
+ /// How many log lines a crash report carries.
+ const TAIL_LINES: usize = 50;
++/// A game log stops growing at this size (stderr still gets everything), so a message repeated every frame cannot
++/// fill the disk.
++const LOG_FILE_MAX: u64 = 64 << 20;
+ /// The developer's old extraction folder, used only when nothing next to the exe exists.
+ /// TODO-remove-before-release (docs/LAUNCHER.md, open list): a player's machine has no such folder; delete this and its test.
+ const DEV_DATA_FALLBACK: &str = "D:/MCLA/extracted/cache";
+@@ -178,13 +181,21 @@ fn log_sender() -> Option<&'static Mutex<std::sync::mpsc::Sender<LogMsg>>> {
+                 let mut file: Option<std::fs::File> = None;
+                 // (everything logged before the file was opened, written to it when it is)
+                 let mut pre: Vec<u8> = Vec::new();
++                // (bytes written to the file so far: it stops at LOG_FILE_MAX)
++                let mut written: u64 = 0;
+                 for m in rx {
+                     match m {
+                         LogMsg::Bytes(b) => {
+                             let _ = std::io::stderr().write_all(&b);
+                             match file.as_mut() {
+                                 Some(f) => {
+-                                    let _ = f.write_all(&b);
++                                    if written < LOG_FILE_MAX {
++                                        let _ = f.write_all(&b);
++                                        written += b.len() as u64;
++                                        if written >= LOG_FILE_MAX {
++                                            let _ = writeln!(f, "(log file reached {} MB, the rest goes to stderr only)", LOG_FILE_MAX >> 20);
++                                        }
++                                    }
+                                 }
+                                 None if pre.len() < 1 << 20 => pre.extend_from_slice(&b),
+                                 None => {}
+@@ -192,7 +203,9 @@ fn log_sender() -> Option<&'static Mutex<std::sync::mpsc::Sender<LogMsg>>> {
+                         }
+                         LogMsg::Open(mut f, header) => {
+                             let _ = f.write_all(header.as_bytes());
+-                            let _ = f.write_all(&std::mem::take(&mut pre));
++                            let pre = std::mem::take(&mut pre);
++                            let _ = f.write_all(&pre);
++                            written = (header.len() + pre.len()) as u64;
+                             file = Some(f);
+                         }
+                         LogMsg::Flush(done) => {
+-- 
+2.43.0
+

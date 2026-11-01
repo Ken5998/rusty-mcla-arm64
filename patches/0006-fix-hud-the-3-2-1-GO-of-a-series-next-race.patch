@@ -1,8 +1,8 @@
-From d4c735292ef5ae265cbb0c0a8469cbb84c7ec5e8 Mon Sep 17 00:00:00 2001
+From 6ad2fb788007239461a6eae6f705785d5e2d16ae Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Kenan=20Kasumovi=C4=87?=
  <46025606+Ken5998@users.noreply.github.com>
 Date: Mon, 26 Oct 2026 19:02:59 +0000
-Subject: [PATCH] fix(hud): the 3-2-1-GO of a series' next race
+Subject: [PATCH 6/6] fix(hud): the 3-2-1-GO of a series' next race
 
 The splash was only cleared on a frame with the countdown above 3 or no
 race. A series' next race is set up while the HUD is hidden, so the
@@ -13,19 +13,19 @@ that goes up now clears it.
  1 file changed, 11 insertions(+), 1 deletion(-)
 
 diff --git a/mcla-rs/crates/game/src/flash_ui.rs b/mcla-rs/crates/game/src/flash_ui.rs
-index 0e452bf..d7443a1 100644
+index a5876fe..a9f7f25 100644
 --- a/mcla-rs/crates/game/src/flash_ui.rs
 +++ b/mcla-rs/crates/game/src/flash_ui.rs
-@@ -1933,6 +1933,8 @@ mod tests {
+@@ -1959,6 +1959,8 @@ mod tests {
  pub struct FlashHud {
      pub movie: FlashMovie,
      countdown_shown: bool,
 +    /// the race's countdown on the last drive (0 with no race)
 +    countdown_last: f32,
-     /// the game's splash queues (`0x82234440`): per slot, up to five waiting
+     /// the game's splash queues (`F-60177`): per slot, up to five waiting
      /// (text, colour, seconds), posted when the movie has freed the slot
      splash_queue: [std::collections::VecDeque<(String, i32, f32)>; 3],
-@@ -1951,7 +1953,7 @@ pub const SPLASH_BOTTOM: usize = 2;
+@@ -1977,7 +1979,7 @@ pub const SPLASH_BOTTOM: usize = 2;
  impl FlashHud {
      pub fn load(data_dir: &str, shared: &UiShared) -> Option<FlashHud> {
          let movie = FlashMovie::load(data_dir, "resources/ui/hud/0x1f0e1cda.r27", shared)?;
@@ -34,7 +34,7 @@ index 0e452bf..d7443a1 100644
          // (the game drives the HUD from its start - the movie is up, hidden, long before it is first shown; driven
          // only from its first showing, its first frames were its placeholders: the race clock's "1:23.45.67.85")
          for _ in 0..30 {
-@@ -2157,6 +2159,14 @@ impl FlashHud {
+@@ -2201,6 +2203,14 @@ impl FlashHud {
              p.set_global("payback_stored", Value::Int(wins));
              p.set_global("payback_level", Value::Int(needed));
          }
@@ -49,3 +49,6 @@ index 0e452bf..d7443a1 100644
          // the 3-2-1-GO splash: the movie animates it itself once its splash slot 3 is
          // raised (`showCountdown`, one number per 1/countdownUpdate frames)
          if race.is_some() && !r.go_only && r.countdown > 0.0 && r.countdown <= 3.0 && !self.countdown_shown {
+-- 
+2.43.0
+
