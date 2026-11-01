@@ -8,6 +8,12 @@ name: Release
 
 on:
   workflow_dispatch:
+  # The weekly upstream check (upstream-check.yml) releases what it merged.
+  workflow_call:
+    inputs:
+      ref:
+        type: string
+        default: ''
 
 permissions:
   contents: write
@@ -19,6 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
+          ref: ${{ inputs.ref }}
           fetch-depth: 0
       - name: Install Rust and the build libraries
         run: |
@@ -57,5 +64,5 @@ jobs:
             gh release edit "v$version" --notes-file notes.md
           else
             gh release create "v$version" "${files[@]}" --title "Midnight Club: Los Angeles $version for ARM64 Linux" \
-              --notes-file notes.md --target "$GITHUB_SHA"
+              --notes-file notes.md --target "$(git rev-parse HEAD)"
           fi

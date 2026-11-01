@@ -13,6 +13,12 @@ on:
     branches: ['**']
   pull_request:
   workflow_dispatch:
+  # The weekly upstream check (upstream-check.yml) runs it on its branch.
+  workflow_call:
+    inputs:
+      ref:
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -26,6 +32,8 @@ jobs:
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref }}
       - name: Install Rust and the build libraries
         run: |
           sudo apt-get update -q
@@ -67,6 +75,8 @@ jobs:
           libwayland-client libwayland-cursor libXrandr libXi libXcursor alsa-lib pipewire-alsa systemd-libs
           xorg-x11-server-Xvfb xorg-x11-xauth
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref }}
       - uses: actions/download-artifact@v4
         with:
           name: game
@@ -119,6 +129,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref }}
       - name: Install Rust, and a virtual screen with OpenGL for the window
         run: |
           sudo apt-get update -q

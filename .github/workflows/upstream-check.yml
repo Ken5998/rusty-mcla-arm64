@@ -1,0 +1,122 @@
+name: Upstream release check
+
+# Once a week: when holdmysocks/rusty-mcla has a newer release than the one in
+# upstream.json, rebase patches/ onto it (scripts/rebase-upstream.sh), raise
+# the launcher's version and run the ARM64 CI on branch ci/upstream-vX.Y.Z.
+# A green build is merged into main and released; a patch that no longer
+# applies, or a red build, opens an issue instead.
+
+on:
+  schedule:
+    - cron: "23 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  actions: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.latest.outputs.tag }}
+      new: ${{ steps.latest.outputs.new }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          url="$(jq -r .repository upstream.json)"
+          tag="$(gh release view --repo "${url#https://github.com/}" --json tagName --jq .tagName 2>/dev/null || true)"
+          # (no GitHub release: the highest version tag)
+          [ -n "$tag" ] || tag="$(git ls-remote --tags --refs "$url" 'v*' | sed 's|.*refs/tags/||' | sort -V | tail -1)"
+          current="v$(jq -r .version upstream.json)"
+          echo "Latest upstream release $tag, last verified $current"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          newest="$(printf '%s\n%s\n' "$tag" "$current" | sort -V | tail -1)"
+          if [ -n "$tag" ] && [ "$tag" != "$current" ] && [ "$newest" = "$tag" ]; then echo "new=true"; else echo "new=false"; fi >> "$GITHUB_OUTPUT"
+      # GitHub disables scheduled workflows after 60 days without repository
+      # activity; enabling this one again on every run keeps it scheduled.
+      - name: Keep the schedule enabled
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/upstream-check.yml/enable" || true
+
+  prepare:
+    needs: check
+    if: needs.check.outputs.new == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      branch: ${{ steps.push.outputs.branch }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Rebase the patches
+        run: scripts/rebase-upstream.sh "${{ needs.check.outputs.tag }}" "$RUNNER_TEMP"
+      - name: Raise the launcher's version
+        run: |
+          old="$(sed -n 's/^version = "\(.*\)"/\1/p' launcher/Cargo.toml | head -1)"
+          new="$(echo "$old" | awk -F. '{ printf "%d.%d.%d", $1, $2, $3 + 1 }')"
+          sed -i "0,/^version = \"$old\"/s//version = \"$new\"/" launcher/Cargo.toml
+          sed -i "/^name = \"rusty-mcla-launcher\"$/{n;s/^version = \"$old\"/version = \"$new\"/}" launcher/Cargo.lock
+          grep -q "^version = \"$new\"" launcher/Cargo.toml
+          echo "Launcher $old -> $new"
+      - id: push
+        env:
+          TAG: ${{ needs.check.outputs.tag }}
+        run: |
+          branch="ci/upstream-$TAG"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add -A upstream.json patches launcher/Cargo.toml launcher/Cargo.lock
+          git commit -m "feat: Rusty MCLA ${TAG#v}"
+          git push -f origin "$branch"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: prepare
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ needs.prepare.outputs.branch }}
+
+  merge:
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Merge into main
+        env:
+          BRANCH: ${{ needs.prepare.outputs.branch }}
+        run: |
+          git fetch origin "$BRANCH"
+          git merge --ff-only "origin/$BRANCH"
+          git push origin HEAD:main
+          git push origin --delete "$BRANCH" || true
+
+  release:
+    needs: merge
+    uses: ./.github/workflows/release.yml
+    with:
+      ref: main
+
+  report:
+    needs: [check, prepare, build, merge, release]
+    if: failure() && needs.check.outputs.new == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Open an issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.check.outputs.tag }}
+          STEP: ${{ needs.prepare.result != 'success' && 'the patches do not apply to it' || needs.build.result != 'success' && 'the ARM64 build or its checks fail' || 'merging or releasing failed' }}
+        run: |
+          title="ARM64 port does not update to upstream $TAG"
+          existing="$(gh issue list --repo "${{ github.repository }}" --state open --search "in:title \"$title\"" --json number --jq 'length')"
+          if [ "$existing" = "0" ]; then
+            gh issue create --repo "${{ github.repository }}" --title "$title" \
+              --body "The weekly check found Rusty MCLA $TAG, but $STEP: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          fi
