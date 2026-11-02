@@ -1,4 +1,4 @@
-From 018f94e0fcc14fc00419cdffcda280e719b98f84 Mon Sep 17 00:00:00 2001
+From 82ae756727fc4f000db048367c59ec3f1efcac70 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Kenan=20Kasumovi=C4=87?=
  <46025606+Ken5998@users.noreply.github.com>
 Date: Mon, 26 Oct 2026 16:59:57 +0000
@@ -12,10 +12,10 @@ keyboard's Enter. A now sets the same accept as Enter there too.
  1 file changed, 3 insertions(+)
 
 diff --git a/mcla-rs/crates/game/src/main.rs b/mcla-rs/crates/game/src/main.rs
-index 9b1e880..6c9ab99 100644
+index 93003a1..4f2d7ac 100644
 --- a/mcla-rs/crates/game/src/main.rs
 +++ b/mcla-rs/crates/game/src/main.rs
-@@ -2089,6 +2089,9 @@ impl App {
+@@ -2257,6 +2257,9 @@ impl App {
              self.game.nav_map |= p(6) && (self.game.show_map || self.game.phone_call_up());
              return;
          }

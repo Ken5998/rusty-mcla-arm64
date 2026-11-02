@@ -1,4 +1,4 @@
-From 3b8abb1c9a629ffc779550141cf821e07d988cba Mon Sep 17 00:00:00 2001
+From 279c460b1730f58869234dec60bba203d0366f46 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Kenan=20Kasumovi=C4=87?=
  <46025606+Ken5998@users.noreply.github.com>
 Date: Sun, 25 Oct 2026 14:07:49 +0000
@@ -27,10 +27,10 @@ MCLA_CITY_SPEC=0: the shared pipelines only.
  create mode 100644 mcla-rs/crates/game/src/render/cityspec.rs
 
 diff --git a/mcla-rs/crates/game/src/carblob.rs b/mcla-rs/crates/game/src/carblob.rs
-index 2347b66..38ec505 100644
+index 1d429fe..bca4ec0 100644
 --- a/mcla-rs/crates/game/src/carblob.rs
 +++ b/mcla-rs/crates/game/src/carblob.rs
-@@ -194,6 +194,7 @@ pub fn run(gpu: &Gpu, enc: &mut wgpu::CommandEncoder, vehicles: &crate::vehicles
+@@ -284,6 +284,7 @@ pub fn run(gpu: &Gpu, enc: &mut wgpu::CommandEncoder, vehicles: &crate::vehicles
          });
          pass.set_bind_group(0, &gpu.globals_bg, &[]);
          if dbg != 273 {
@@ -39,10 +39,10 @@ index 2347b66..38ec505 100644
              let mut draws = 0usize;
              vehicles.draw(&mut pass, gpu, false, &mut draws, Some((cam, 110.0)), None);
 diff --git a/mcla-rs/crates/game/src/main.rs b/mcla-rs/crates/game/src/main.rs
-index 5ad45e5..c8ea543 100644
+index a2c676a..b1c6ab2 100644
 --- a/mcla-rs/crates/game/src/main.rs
 +++ b/mcla-rs/crates/game/src/main.rs
-@@ -9586,7 +9586,7 @@ log::info!("stuck2: car {} {} grounded {} up.y {:.2} speed {:.2} rpm {:.0} veh {
+@@ -10279,7 +10279,7 @@ log::info!("stuck2: car {} {} grounded {} up.y {:.2} speed {:.2} rpm {:.0} veh {
                  if blend && (!env_all || std::env::var("MCLA_ENV_NO_PANES").is_ok()) {
                      continue;
                  }
@@ -51,7 +51,7 @@ index 5ad45e5..c8ea543 100644
                  let mut last_mode = u32::MAX;
                  for (sec, detail, sid) in env_secs.iter().copied() {
                      // (MCLA_ENV_ONLY=far|detail: one of the two kinds alone, to see what each covers)
-@@ -9655,7 +9655,7 @@ log::info!("stuck2: car {} {} grounded {} up.y {:.2} speed {:.2} rpm {:.0} veh {
+@@ -10367,7 +10367,7 @@ log::info!("stuck2: car {} {} grounded {} up.y {:.2} speed {:.2} rpm {:.0} veh {
                          }
                          dp.set_bind_group(1, b.bind.as_ref(), &[]);
                          if b.mode as u32 != last_mode {
@@ -60,7 +60,7 @@ index 5ad45e5..c8ea543 100644
                              last_mode = b.mode as u32;
                          }
                          if by_part {
-@@ -9693,7 +9693,7 @@ log::info!("stuck2: car {} {} grounded {} up.y {:.2} speed {:.2} rpm {:.0} veh {
+@@ -10405,7 +10405,7 @@ log::info!("stuck2: car {} {} grounded {} up.y {:.2} speed {:.2} rpm {:.0} veh {
                  ep.draw(0..3, 0..1);
              }
              ep.set_bind_group(3, &gpu.identity_obj.bg, &[]);
@@ -69,7 +69,7 @@ index 5ad45e5..c8ea543 100644
              let mut last_mode = u32::MAX;
              for sec in world.loaded.values().filter(|_| !env_dp) {
                  let (Some(vb), Some(ib)) = (sec.vb.as_ref(), sec.ib.as_ref()) else { continue };
-@@ -9715,7 +9715,7 @@ log::info!("stuck2: car {} {} grounded {} up.y {:.2} speed {:.2} rpm {:.0} veh {
+@@ -10427,7 +10427,7 @@ log::info!("stuck2: car {} {} grounded {} up.y {:.2} speed {:.2} rpm {:.0} veh {
                      }
                      ep.set_bind_group(1, b.bind.as_ref(), &[]);
                      if b.mode as u32 != last_mode {
@@ -78,7 +78,7 @@ index 5ad45e5..c8ea543 100644
                          last_mode = b.mode as u32;
                      }
                      ep.draw_indexed(b.first..b.first + b.count, 0, 0..1);
-@@ -9727,7 +9727,7 @@ log::info!("stuck2: car {} {} grounded {} up.y {:.2} speed {:.2} rpm {:.0} veh {
+@@ -10439,7 +10439,7 @@ log::info!("stuck2: car {} {} grounded {} up.y {:.2} speed {:.2} rpm {:.0} veh {
              // same 4 on) - show uncovered, 3.3 times too bright: a yellow band along the
              // horizon of the night map where the original's shops are dim. MCLA_ENV_NO_PANES=1: as before.
              if std::env::var("MCLA_ENV_NO_PANES").is_err() {
@@ -87,7 +87,7 @@ index 5ad45e5..c8ea543 100644
                  let mut last_mode = u32::MAX;
                  for sec in world.loaded.values().filter(|_| !env_dp) {
                      let (Some(vb), Some(ib)) = (sec.vb.as_ref(), sec.ib.as_ref()) else { continue };
-@@ -9748,13 +9748,14 @@ log::info!("stuck2: car {} {} grounded {} up.y {:.2} speed {:.2} rpm {:.0} veh {
+@@ -10460,13 +10460,14 @@ log::info!("stuck2: car {} {} grounded {} up.y {:.2} speed {:.2} rpm {:.0} veh {
                          }
                          ep.set_bind_group(1, b.bind.as_ref(), &[]);
                          if b.mode as u32 != last_mode {
@@ -103,7 +103,7 @@ index 5ad45e5..c8ea543 100644
              if env_dp {
                  ep.set_pipeline(&gpu.pipeline_env_fill);
                  ep.set_bind_group(0, &gpu.env_fill_bg, &[]);
-@@ -9833,10 +9834,11 @@ log::info!("stuck2: car {} {} grounded {} up.y {:.2} speed {:.2} rpm {:.0} veh {
+@@ -10558,10 +10559,11 @@ log::info!("stuck2: car {} {} grounded {} up.y {:.2} speed {:.2} rpm {:.0} veh {
                  pass.set_stencil_reference(0);
              }
              pass.set_bind_group(3, &gpu.identity_obj.bg, &[]);
@@ -117,7 +117,7 @@ index 5ad45e5..c8ea543 100644
                  if let Some((vb, ib, n, _)) = cm.patch.as_ref() {
                      pass.set_vertex_buffer(0, vb.slice(..));
                      pass.set_index_buffer(ib.slice(..), wgpu::IndexFormat::Uint32);
-@@ -9857,15 +9859,19 @@ log::info!("stuck2: car {} {} grounded {} up.y {:.2} speed {:.2} rpm {:.0} veh {
+@@ -10582,15 +10584,19 @@ log::info!("stuck2: car {} {} grounded {} up.y {:.2} speed {:.2} rpm {:.0} veh {
              if let Some(p) = probe {
                  p.close(pass);
              }
@@ -129,7 +129,7 @@ index 5ad45e5..c8ea543 100644
          let city_b1 = |pass: &mut wgpu::RenderPass<'_>, draws: &mut usize| {
              let gpu = &gpu;
 +            let prev_city = gpu.city_spec.cur();
-             ground_sheet::draw(pass, gpu, vp);
+             ground_sheet::draw(pass, gpu, vp_px);
 -            pass.set_pipeline(&gpu.pipeline_inst);
 +            gpu.set_city(pass, render::cityspec::CityKind::Inst);
              pass.set_bind_group(3, &gpu.identity_obj.bg, &[]);
@@ -138,7 +138,7 @@ index 5ad45e5..c8ea543 100644
          };
          // (the parts' command buffers in their order: A1, A2, B1)
          let mut parts_out: [Option<(wgpu::CommandBuffer, usize)>; 3] = [None, None, None];
-@@ -9922,7 +9928,7 @@ log::info!("stuck2: car {} {} grounded {} up.y {:.2} speed {:.2} rpm {:.0} veh {
+@@ -10647,7 +10653,7 @@ log::info!("stuck2: car {} {} grounded {} up.y {:.2} speed {:.2} rpm {:.0} veh {
              if split_city {
                  pass.set_bind_group(0, &gpu.globals_bg, &[]);
                  pass.set_bind_group(3, &gpu.identity_obj.bg, &[]);
@@ -147,7 +147,7 @@ index 5ad45e5..c8ea543 100644
              } else {
                  city_a(&mut pass, &mut draws, &secs, true, None);
              }
-@@ -9934,18 +9940,18 @@ log::info!("stuck2: car {} {} grounded {} up.y {:.2} speed {:.2} rpm {:.0} veh {
+@@ -10659,18 +10665,18 @@ log::info!("stuck2: car {} {} grounded {} up.y {:.2} speed {:.2} rpm {:.0} veh {
                      stat_props = draws - d0;
                  }
                  gpuprof::stamp_pass(&gpu.device, &mut pass, "B cars");
@@ -169,7 +169,7 @@ index 5ad45e5..c8ea543 100644
                  // (shop panes write depth as the original's pane draws do; MCLA_DEBUG_VIEW=330: as before, no depth writes)
                  let pane_zw = std::env::var("MCLA_DEBUG_VIEW").map_or(true, |v| v.trim() != "330");
                  gpuprof::stamp_pass(&gpu.device, &mut pass, "B blended sectors");
-@@ -9957,15 +9963,16 @@ log::info!("stuck2: car {} {} grounded {} up.y {:.2} speed {:.2} rpm {:.0} veh {
+@@ -10682,15 +10688,16 @@ log::info!("stuck2: car {} {} grounded {} up.y {:.2} speed {:.2} rpm {:.0} veh {
                  // drawn after the shop panes, blended, both sides, no depth writes; MCLA_DEBUG_VIEW=580: not drawn)
                  gpuprof::stamp_pass(&gpu.device, &mut pass, "B glass props");
                  if std::env::var("MCLA_DEBUG_VIEW").map_or(true, |v| v.trim() != "580") {
@@ -188,7 +188,7 @@ index 5ad45e5..c8ea543 100644
                  if self.time_of_day > 18.0 || self.time_of_day < 6.0 {
                      self.props.draw_glows(&mut pass, &gpu);
                  }
-@@ -9979,6 +9986,7 @@ log::info!("stuck2: car {} {} grounded {} up.y {:.2} speed {:.2} rpm {:.0} veh {
+@@ -10704,6 +10711,7 @@ log::info!("stuck2: car {} {} grounded {} up.y {:.2} speed {:.2} rpm {:.0} veh {
              }
              pass.set_pipeline(&gpu.pipeline_blend);
              pass.set_bind_group(3, &gpu.identity_obj.bg, &[]);
@@ -196,7 +196,7 @@ index 5ad45e5..c8ea543 100644
          });
          gpuprof::probe_end(&mut enc, [probe_a1, probe_a2].into_iter().flatten().collect());
          for (k, (cb, n)) in parts_out.into_iter().enumerate().filter_map(|(k, o)| o.map(|o| (k, o))) {
-@@ -12608,26 +12616,28 @@ fn draw_sectors<'a>(pass: &mut wgpu::RenderPass<'_>, v: &SectorView<'a>, secs: i
+@@ -13575,26 +13583,28 @@ fn draw_sectors<'a>(pass: &mut wgpu::RenderPass<'_>, v: &SectorView<'a>, secs: i
                  pass.set_bind_group(1, b.bind.as_ref(), &[]);
                  last_bind = bp;
              }
@@ -232,10 +232,10 @@ index 5ad45e5..c8ea543 100644
  }
  
 diff --git a/mcla-rs/crates/game/src/props.rs b/mcla-rs/crates/game/src/props.rs
-index 56e1b90..5f89236 100644
+index f8fcb48..7940a3b 100644
 --- a/mcla-rs/crates/game/src/props.rs
 +++ b/mcla-rs/crates/game/src/props.rs
-@@ -1601,7 +1601,7 @@ impl Props {
+@@ -1608,7 +1608,7 @@ impl Props {
                              for b in &self.models[m].batches {
                                  if (b.mode == MatMode::PropGlass) != glass { continue; }
                                  pass.set_bind_group(1, b.bind.as_ref(), &[]);
@@ -244,7 +244,7 @@ index 56e1b90..5f89236 100644
                                  pass.set_vertex_buffer(0, b.vb.slice(..));
                                  pass.set_index_buffer(b.ib.slice(..), wgpu::IndexFormat::Uint32);
                                  pass.draw_indexed(0..b.count, 0, r.start..r.start + r.count);
-@@ -1668,7 +1668,7 @@ impl Props {
+@@ -1675,7 +1675,7 @@ impl Props {
                  for b in &self.models[*mi].batches {
                      if (b.mode == MatMode::PropGlass) != glass { continue; }
                      pass.set_bind_group(1, b.bind.as_ref(), &[]);
@@ -253,7 +253,7 @@ index 56e1b90..5f89236 100644
                      pass.set_vertex_buffer(0, b.vb.slice(..));
                      pass.set_index_buffer(b.ib.slice(..), wgpu::IndexFormat::Uint32);
                      pass.draw_indexed(0..b.count, 0, *inst..*inst + 1);
-@@ -1686,7 +1686,7 @@ impl Props {
+@@ -1693,7 +1693,7 @@ impl Props {
                  for b in &self.models[bar.model].batches {
                      if (b.mode == MatMode::PropGlass) != glass { continue; }
                      pass.set_bind_group(1, b.bind.as_ref(), &[]);
@@ -531,7 +531,7 @@ index 0000000..31dd37c
 +    })
 +}
 diff --git a/mcla-rs/crates/game/src/render/mod.rs b/mcla-rs/crates/game/src/render/mod.rs
-index d360197..1f89c17 100644
+index 81e5509..e2fb2da 100644
 --- a/mcla-rs/crates/game/src/render/mod.rs
 +++ b/mcla-rs/crates/game/src/render/mod.rs
 @@ -1,6 +1,7 @@
@@ -542,7 +542,7 @@ index d360197..1f89c17 100644
  pub mod mb;
  pub mod ms;
  pub mod post;
-@@ -919,6 +920,8 @@ pub struct Gpu {
+@@ -948,6 +949,8 @@ pub struct Gpu {
      pub identity_obj: ObjectBinding,
      pub pipeline_opaque: ms::MsPipe,
      pub pipeline_blend: ms::MsPipe,
@@ -551,7 +551,7 @@ index d360197..1f89c17 100644
      /// car windows: back faces, then front faces, both with depth writes
      pub pipeline_glass_back: ms::MsPipe,
      pub pipeline_glass_front: ms::MsPipe,
-@@ -1034,6 +1037,46 @@ pub struct Gpu {
+@@ -1073,6 +1076,46 @@ pub struct Gpu {
  }
  
  impl Gpu {
@@ -598,19 +598,19 @@ index d360197..1f89c17 100644
      pub async fn new(window: Arc<winit::window::Window>) -> Result<Gpu> {
          Ok(Gpu::build(Gpu::base(window).await?))
      }
-@@ -1734,9 +1777,10 @@ impl Gpu {
+@@ -1820,9 +1863,10 @@ impl Gpu {
          });
          let blank_dmg = damage_map_texture(&device, 1).create_view(&Default::default());
          let identity_obj = make_object_binding(&device, &obj_layout, &ObjectUniform::default(), &blank_dmg);
-+        let city_src = cityspec::without_debug_views(paint_tuned(&[include_str!("city.wgsl"), xs::text("xs_road.wgsl"), xs::text("xs_roadn.wgsl"), xs::text("xs_water.wgsl"), xs::text("xs_pond.wgsl")].concat()));
++        let city_src = cityspec::without_debug_views(paint_tuned(&[include_str!("city.wgsl"), xs::text("xs_road.wgsl"), xs::text("xs_roadn.wgsl"), xs::text("xs_water.wgsl"), xs::text("xs_pond.wgsl")].concat()).replace("const HALF_PX_DP: f32 = 1.0;", if half_pixel_on() { "const HALF_PX_DP: f32 = 1.0;" } else { "const HALF_PX_DP: f32 = 0.0;" }));
          let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
              label: Some("city"),
--            source: wgpu::ShaderSource::Wgsl(paint_tuned(&[include_str!("city.wgsl"), xs::text("xs_road.wgsl"), xs::text("xs_roadn.wgsl"), xs::text("xs_water.wgsl"), xs::text("xs_pond.wgsl")].concat()).into()),
+-            source: wgpu::ShaderSource::Wgsl(paint_tuned(&[include_str!("city.wgsl"), xs::text("xs_road.wgsl"), xs::text("xs_roadn.wgsl"), xs::text("xs_water.wgsl"), xs::text("xs_pond.wgsl")].concat()).replace("const HALF_PX_DP: f32 = 1.0;", if half_pixel_on() { "const HALF_PX_DP: f32 = 1.0;" } else { "const HALF_PX_DP: f32 = 0.0;" }).into()),
 +            source: wgpu::ShaderSource::Wgsl(city_src.as_str().into()),
          });
          let pl = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
              label: Some("city pl"),
-@@ -1798,6 +1842,7 @@ impl Gpu {
+@@ -1884,6 +1928,7 @@ impl Gpu {
          // so the shop behind an angled entrance shows through ONE pane; back faces go in city.wgsl)
          let pipeline_pane = make_pipeline_x(true, "vs_main", None, true);
          let pipeline_opaque = make_pipeline(false, "vs_main");
@@ -618,7 +618,7 @@ index d360197..1f89c17 100644
          let pipeline_blend = make_pipeline(true, "vs_main");
          // (the cars' environment map drawn the original's way: the paraboloid warp per vertex - city.wgsl vs_env_dp)
          // (each ~4 s to compile with the driver's cache cold: built on threads of their own while the loading goes on)
-@@ -2356,6 +2401,7 @@ impl Gpu {
+@@ -2442,6 +2487,7 @@ impl Gpu {
              identity_obj,
              pipeline_opaque,
              pipeline_blend,
@@ -627,10 +627,10 @@ index d360197..1f89c17 100644
              pipeline_glass_front,
              pipeline_glass_inner,
 diff --git a/mcla-rs/crates/game/src/skin.rs b/mcla-rs/crates/game/src/skin.rs
-index 3cbf91c..4834417 100644
+index 4faf041..2695c01 100644
 --- a/mcla-rs/crates/game/src/skin.rs
 +++ b/mcla-rs/crates/game/src/skin.rs
-@@ -732,7 +732,7 @@ impl SkinBuffer {
+@@ -754,7 +754,7 @@ impl SkinBuffer {
              *draws += 1;
              return;
          }
@@ -640,10 +640,10 @@ index 3cbf91c..4834417 100644
          let mut obj = usize::MAX;
          // (the stencil reference as the pass has it - 0, the world's - changed only for the figures that carry one)
 diff --git a/mcla-rs/crates/game/src/vehicles.rs b/mcla-rs/crates/game/src/vehicles.rs
-index d0bdcd3..570ce35 100644
+index a430055..2e946c6 100644
 --- a/mcla-rs/crates/game/src/vehicles.rs
 +++ b/mcla-rs/crates/game/src/vehicles.rs
-@@ -4751,26 +4751,26 @@ if keep || c.state.pos.distance(center) < 450.0 {
+@@ -5062,26 +5062,26 @@ if keep || c.state.pos.distance(center) < 450.0 {
              // back faces' cull and no depth writes - here once, city.wgsl blends it as the two draws)
              let inner = self.interior_glass && c.is_player;
              if glass2 {
@@ -674,7 +674,7 @@ index d0bdcd3..570ce35 100644
              }
              // A traffic car's blended bucket (`GpuBatch::bucket`, prep_car), in the main alpha pass, in its model's order
              // as F-73627 draws it: blended (SRC_ALPHA / INV_SRC_ALPHA), depth writes on, back faces culled (recorded
-@@ -4814,7 +4814,7 @@ if keep || c.state.pos.distance(center) < 450.0 {
+@@ -5137,7 +5137,7 @@ if keep || c.state.pos.distance(center) < 450.0 {
                  };
                  pass.set_bind_group(3, c.group_object(groups[bi]), &[]);
                  pass.set_bind_group(1, bind.as_ref(), &[]);
@@ -683,16 +683,16 @@ index d0bdcd3..570ce35 100644
                  pass.set_vertex_buffer(0, b.vb.slice(..));
                  pass.set_index_buffer(b.ib.slice(..), wgpu::IndexFormat::Uint32);
                  pass.draw_indexed(0..b.count, 0, 0..1);
-@@ -4830,7 +4830,7 @@ if keep || c.state.pos.distance(center) < 450.0 {
-                         pass.set_bind_group(3, &wb.bg, &[]);
-                         for b in &w.batches {
+@@ -5156,7 +5156,7 @@ if keep || c.state.pos.distance(center) < 450.0 {
+                         let rim_from = if back { w.rim_from.min(w.batches.len()) } else { w.batches.len() };
+                         for b in w.batches[..rim_from].iter().chain(if back { &w.backside[..] } else { &w.batches[rim_from..] }) {
                              pass.set_bind_group(1, b.bind.as_ref(), &[]);
 -                            pass.set_bind_group(2, &gpu.mat_bgs[&(b.mode as u32)], &[]);
 +                            gpu.bind_mat(pass, b.mode as u32);
                              pass.set_vertex_buffer(0, b.vb.slice(..));
                              pass.set_index_buffer(b.ib.slice(..), wgpu::IndexFormat::Uint32);
                              pass.draw_indexed(0..b.count, 0, 0..1);
-@@ -4843,7 +4843,7 @@ if keep || c.state.pos.distance(center) < 450.0 {
+@@ -5169,7 +5169,7 @@ if keep || c.state.pos.distance(center) < 450.0 {
                                  pass.set_bind_group(3, bg, &[]);
                                  for b in list {
                                      pass.set_bind_group(1, b.bind.as_ref(), &[]);

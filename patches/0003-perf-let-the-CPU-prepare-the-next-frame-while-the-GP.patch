@@ -1,4 +1,4 @@
-From 19f205c018e3d60337a7b70fe2427289787bd954 Mon Sep 17 00:00:00 2001
+From 4f06c265c6925c91d369fc5dfdd0bfc5a3ccfa91 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Kenan=20Kasumovi=C4=87?=
  <46025606+Ken5998@users.noreply.github.com>
 Date: Sun, 25 Oct 2026 16:28:02 +0000
@@ -15,10 +15,10 @@ swapchain paces the frames); MCLA_PRESENT_NOTIFY=1 restores it.
  1 file changed, 8 insertions(+), 1 deletion(-)
 
 diff --git a/mcla-rs/crates/game/src/main.rs b/mcla-rs/crates/game/src/main.rs
-index c8ea543..9b1e880 100644
+index b1c6ab2..93003a1 100644
 --- a/mcla-rs/crates/game/src/main.rs
 +++ b/mcla-rs/crates/game/src/main.rs
-@@ -10190,7 +10190,14 @@ log::info!("stuck2: car {} {} grounded {} up.y {:.2} speed {:.2} rpm {:.0} veh {
+@@ -10915,7 +10915,14 @@ log::info!("stuck2: car {} {} grounded {} up.y {:.2} speed {:.2} rpm {:.0} veh {
          let t_enc = now.elapsed().as_secs_f32() * 1000.0;
          gpu.queue.submit(early_cbs.into_iter().chain([enc.finish()]));
          gpuprof::after_submit();

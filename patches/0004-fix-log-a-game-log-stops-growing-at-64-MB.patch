@@ -1,4 +1,4 @@
-From f2a702b3a798b7f31261cf9115874f2cb24b80b7 Mon Sep 17 00:00:00 2001
+From 34ae7dbf7701b8b6b3f86a885554969afdd161f2 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Kenan=20Kasumovi=C4=87?=
  <46025606+Ken5998@users.noreply.github.com>
 Date: Mon, 26 Oct 2026 16:34:34 +0000
@@ -11,7 +11,7 @@ stderr still gets every line.
  1 file changed, 15 insertions(+), 2 deletions(-)
 
 diff --git a/mcla-rs/crates/game/src/hooks.rs b/mcla-rs/crates/game/src/hooks.rs
-index cb29c89..057c412 100644
+index c108667..31569f5 100644
 --- a/mcla-rs/crates/game/src/hooks.rs
 +++ b/mcla-rs/crates/game/src/hooks.rs
 @@ -26,6 +26,9 @@ use std::time::{Duration, Instant};
