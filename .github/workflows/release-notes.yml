@@ -1,8 +1,9 @@
 name: Release notes
 
 # Rewrites a published release's notes with the changes since the previous
-# release (scripts/release-notes.sh), keeping its install instructions. The
-# launcher release workflow writes them the same way for new releases.
+# release (scripts/release-notes.sh), keeping its install instructions, or
+# writing them again with scripts/install-notes.sh when install is "rewrite".
+# The launcher release workflow writes them the same way for new releases.
 
 on:
   workflow_dispatch:
@@ -10,6 +11,11 @@ on:
       tag:
         description: Release tag (default the latest release)
         required: false
+      install:
+        description: Install section (keep the published one, or rewrite it from scripts/install-notes.sh)
+        type: choice
+        options: [keep, rewrite]
+        default: keep
 
 permissions:
   contents: write
@@ -25,6 +31,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ inputs.tag }}
+          INSTALL: ${{ inputs.install }}
         run: |
           tag="${TAG:-$(gh release view --json tagName --jq .tagName)}"
           body="$(gh release view "$tag" --json body --jq .body)"
@@ -32,7 +39,16 @@ jobs:
           # Keep everything after the "What's new" part: the install section,
           # whatever its heading.
           rest="$(printf '%s\n' "$body" | awk '/^## / && !/^## What.s new/ { keep = 1 } keep')"
-          if [ -n "$rest" ]; then
+          if [ "$INSTALL" = rewrite ]; then
+            upstream="$(git show "$tag:upstream.json" | python3 -c 'import json, sys; print(json.load(sys.stdin)["version"])')"
+            sha256="$(gh release view "$tag" --json assets \
+              --jq '.assets[] | select(.name == "RustyMCLA-Launcher-linux-arm64.tar.gz") | .digest' 2> /dev/null | sed 's/^sha256://' || true)"
+            if [ -z "$sha256" ]; then
+              gh release download "$tag" --pattern RustyMCLA-Launcher-linux-arm64.tar.gz --dir /tmp/launcher
+              sha256="$(sha256sum /tmp/launcher/RustyMCLA-Launcher-linux-arm64.tar.gz | cut -d' ' -f1)"
+            fi
+            scripts/install-notes.sh "${tag#v}" "$upstream" "$sha256" >> notes.md
+          elif [ -n "$rest" ]; then
             printf '%s\n' "$rest" >> notes.md
           else
             printf '## Install\n\n%s\n' "$body" >> notes.md
